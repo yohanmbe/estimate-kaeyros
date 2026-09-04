@@ -1,8 +1,7 @@
 [project]
 name = "estimate"
 version = "0.1.0"
-description = "Un agent conversationnel de pré-cotation
-pour le secteur événementiel"
+description = "Un agent conversationnel de pre-cotation pour le secteur evenementiel"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [

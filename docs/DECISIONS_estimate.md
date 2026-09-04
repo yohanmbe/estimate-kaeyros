@@ -83,4 +83,48 @@ l'événementiel. L'hôtellerie est le premier domaine envisagé parce que
 le responsable l'a cité, mais le mécanisme vaut pour tout métier qui
 chiffre des prestations à partir d'un catalogue.
 
+## D16 — Le prospect est rattaché à une entreprise par le lien d'accès
+Chaque tenant dispose de sa propre adresse d'accès au chat, sous la forme
+d'un identifiant court dans l'URL. Le prospect n'a jamais à choisir une
+entreprise dans une liste : il arrive sur le chat d'Événements Étoile
+parce qu'Événements Étoile lui a donné ce lien, sur son site ou sa page
+Facebook. Le canal lit cet identifiant au démarrage et charge le tenant
+et son catalogue.
+Raison : un produit vendu à des entreprises ne les met pas en
+concurrence sur une place de marché. Chaque entreprise expose son propre
+point d'entrée. Contrepartie : un lien invalide doit être traité
+proprement, sinon la conversation démarre sans catalogue.
+
+## D17 — La capacité filtre, le quartier trie
+Une salle est retenue si sa capacité suffit au nombre d'invités. Le
+quartier souhaité n'élimine aucune salle : il remonte en tête de liste
+celles qui s'y trouvent.
+Raison : la capacité est une contrainte physique, le quartier une
+préférence. Un filtre dur sur le quartier renverrait une liste vide alors
+que des salles conviennent à deux kilomètres. Contrepartie : le prospect
+voit parfois des salles hors de son quartier, ce que l'affichage doit
+rendre lisible.
+
+## D18 — Authentification gestionnaire volontairement minimale en v1
+Une table utilisateur rattachée au tenant, un mot de passe haché, une
+connexion par identifiant et mot de passe. Pas de récupération de mot de
+passe, pas de rôles multiples, pas de double authentification. Les
+comptes sont créés dans le script de seed.
+Raison : le cloisonnement entre entreprises doit être réel et
+démontrable, mais l'authentification complète est un sujet à part entière
+qui consommerait plusieurs jours sans rien apporter à la démonstration du
+cœur du produit. Le durcissement figure dans les perspectives du rapport.
+Le mot de passe est haché dès la v1, jamais stocké en clair, même en
+démonstration.
+
+## D19 — Les KPI se calculent, ils ne s'estiment pas
+Le tableau de bord affiche quatre indicateurs issus de requêtes sur la
+base : nombre de demandes reçues, montant total estimé cumulé, montant
+moyen d'une estimation, répartition des demandes par tranche d'invités.
+Aucun indicateur de conversion commerciale.
+Raison : un taux de conversion supposerait de savoir quelles demandes ont
+abouti à une vente, information que le produit ne détient pas puisqu'il
+s'arrête à l'estimation (voir D08). Afficher un chiffre qu'on ne sait pas
+justifier est aussi grave qu'un montant faux sur un devis.
+
 [Décisions suivantes à ajouter au fil du développement, avec la date.]

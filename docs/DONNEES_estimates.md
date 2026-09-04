@@ -18,9 +18,12 @@ ressources différentes ont deux prix différents. Une salle à Bastos et
 une salle à Tsinga sont deux lignes du catalogue.
 
 Conséquence pour le moteur : chercher une salle n'est pas un calcul,
-c'est un filtre sur le catalogue (capacité suffisante, quartier
-souhaité). Le résultat peut contenir zéro, une ou plusieurs ressources.
-On présente les options au prospect, il choisit.
+c'est un filtre suivi d'un tri. Le filtre porte sur la capacité, seule
+contrainte physique : une salle est retenue si elle peut accueillir le
+nombre d'invités. Le tri porte sur le quartier souhaité, qui remonte en
+tête les salles concernées sans écarter les autres. Le résultat peut
+contenir zéro, une ou plusieurs ressources. On présente les options au
+prospect, il choisit.
 
 ## Multi-locataires
 
@@ -34,7 +37,27 @@ habitude.
 ## Tables
 
 ### tenant
-Identifiant, nom de l'entreprise, ville, coordonnées, date de création.
+- id, nom de l'entreprise, ville, coordonnées, date de création
+- slug : identifiant court et unique utilisé dans l'URL d'accès au chat
+  (par exemple « etoile »). C'est ce qui rattache un prospect à une
+  entreprise sans qu'il ait à choisir.
+- logo : chemin du logo, repris dans l'en-tête du PDF (voir D14)
+- actif : booléen
+
+### utilisateur
+Un gestionnaire d'une entreprise cliente.
+- id, tenant_id
+- email : sert d'identifiant de connexion, unique
+- mot_de_passe_hache : jamais de mot de passe en clair, même en
+  démonstration
+- nom
+- actif : booléen
+- date_creation, derniere_connexion
+
+Un utilisateur appartient à un seul tenant. C'est cette appartenance qui
+détermine ce qu'il voit dans le tableau de bord : la connexion établit le
+tenant_id de la session, et toutes les requêtes du tableau de bord
+filtrent dessus.
 
 ### ressource
 La table centrale. Une ressource est tout ce qu'on peut facturer.
@@ -98,6 +121,22 @@ Structure du besoin :
 - total, devise (XAF), date_emission, date_validite
 - chemin_pdf
 
+## Indicateurs du tableau de bord
+
+Quatre indicateurs, tous calculés par requête sur les tables demande et
+devis du tenant connecté, sur une période choisie par le gestionnaire.
+
+Nombre de demandes reçues : compte des demandes du tenant sur la période.
+Montant total estimé : somme des totaux des devis émis sur la période.
+Montant moyen d'une estimation : le total divisé par le nombre de devis.
+Répartition des demandes par tranche d'invités : regroupement du champ
+nombre_invites du besoin en trois ou quatre tranches.
+
+Aucun indicateur de conversion n'est affiché, le produit ne sachant pas
+ce qu'une demande devient après l'envoi de l'estimation (voir D08 et
+D19). Les indicateurs suivent la même règle que les devis : ils sortent
+d'une requête et d'un calcul Python, jamais d'une estimation.
+
 Les lignes sont figées à l'émission. Si un prix change en octobre, le
 devis émis en septembre reste consultable à l'identique. C'est simple à
 faire et ça donne un argument solide : un devis est un document, pas un
@@ -118,6 +157,10 @@ selon le quartier.
 
 Prestations à créer, une vingtaine, couvrant les sept catégories.
 [À COMPLÉTER : liste des prestations avec unité de facturation et prix]
+
+Un utilisateur gestionnaire par tenant, créé dans le seed avec un mot de
+passe haché. Identifiants de démonstration à noter dans le README, pas
+dans le code.
 
 ## Pièges connus
 

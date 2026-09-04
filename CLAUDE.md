@@ -45,6 +45,7 @@ modification manuelle du schéma.
 ## Structure des modules
 
 Les modules portent le nom de leur fonction, pas le nom du produit :
+
 - src/canaux/ — interfaces Streamlit et WhatsApp
 - src/extraction/ — interface LLM, prompts, mock
 - src/orchestration/ — machine à états, questions
@@ -86,3 +87,26 @@ DONNEES.md, CAHIER-DES-CHARGES.md.
 L'étudiant doit pouvoir expliquer chaque ligne de code à l'oral. Avant
 de proposer une solution complexe, explique le raisonnement. Signale les
 hypothèses. Signale si une solution viole la contrainte architecturale.
+
+## Multi-locataires et sécurité
+
+Le tenant du prospect est résolu par le slug dans l'URL, jamais choisi
+dans une liste. Sans tenant, aucune conversation ne démarre.
+
+Le tenant du gestionnaire est établi à la connexion. Toute requête du
+tableau de bord filtre sur ce tenant_id. Une requête sans filtre est un
+bug de sécurité, pas un oubli.
+
+Les mots de passe sont hachés, jamais stockés en clair, y compris dans
+les données de démonstration. Utiliser une fonction de hachage adaptée
+aux mots de passe.
+
+## Sélection des ressources
+
+Pour les salles, la capacité filtre et le quartier trie. Ne jamais
+écarter une salle parce qu'elle est dans un autre quartier.
+
+## Indicateurs
+
+Les KPI se calculent par requête SQL et code Python déterministe, testés
+comme le moteur de devis. Aucun indicateur de conversion commerciale.

@@ -1,4 +1,4 @@
- CAHIER-DES-CHARGES.md 
+CAHIER-DES-CHARGES.md
 
 # Cahier des charges — Estimate
 
@@ -24,6 +24,7 @@ L'entreprise cliente dispose d'un tableau de bord où elle saisit son
 catalogue (salles, prestations, prix) et consulte les demandes reçues.
 
 
+
 ## La frontière du produit
 
 Estimate produit une estimation, rien de plus. La disponibilité des
@@ -37,8 +38,9 @@ les types d'événements autres que le mariage ; les secteurs autres que
 l'événementiel.
 
 Le devis produit est une estimation indicative, non contractuelle,
-valable [À COMPLÉTER : nombre de jours, proposition 15]. Le PDF précise
+valable \[À COMPLÉTER : nombre de jours, proposition 15]. Le PDF précise
 que les prestations restent à confirmer par l'entreprise.
+
 
 
 ## Utilisateurs
@@ -76,11 +78,40 @@ extraction du besoin, conversation Streamlit, génération PDF.
 Semaine 2 : tableau de bord gestionnaire, canal WhatsApp si possible,
 campagne d'évaluation, rédaction.
 
-Date de démonstration : [À COMPLÉTER]
-Date de rendu du rapport : [À COMPLÉTER]
+Date de démonstration : \[À COMPLÉTER]
+Date de rendu du rapport : \[À COMPLÉTER]
 
 ## Ce que le responsable doit pouvoir décider après la démonstration
 
 Si le produit vaut d'être poussé jusqu'à une version commercialisable.
 Quel effort représente l'extension à un autre domaine d'activité.
 Quelles fonctionnalités manquent pour un premier client réel.
+
+
+
+Le prospect accède au chat d'une entreprise donnée par un lien qui lui
+
+est propre. Il ne choisit jamais l'entreprise dans une liste.
+
+
+
+Une salle est proposée si sa capacité couvre le nombre d'invités. Les
+
+salles du quartier souhaité apparaissent en premier, les autres restent
+
+proposées.
+
+
+
+Un gestionnaire accède à son tableau de bord après s'être authentifié par
+
+email et mot de passe. Il ne voit que les données de son entreprise.
+
+
+
+Le tableau de bord affiche quatre indicateurs sur une période choisie :
+
+nombre de demandes, montant total estimé, montant moyen, répartition par
+
+tranche d'invités.
+

@@ -10,6 +10,12 @@ Le CANAL reçoit et renvoie des messages. Streamlit aujourd'hui, WhatsApp
 demain. Il ne sait rien du métier : il transmet du texte et affiche des
 réponses. C'est ce qui rend le second canal peu coûteux à ajouter.
 
+Le canal a une seule responsabilité métier, déterminer à quelle
+entreprise appartient la conversation. En Streamlit, il lit le slug dans
+les paramètres de l'URL. En WhatsApp, il lira le numéro de téléphone
+destinataire, chaque entreprise disposant du sien. Dans les deux cas, le
+tenant est établi au premier message et ne change plus.
+
 L'EXTRACTEUR transforme une phrase en besoin structuré. C'est le seul
 endroit où le LLM travaille, avec la reformulation. Il extrait, il ne
 décide pas.
@@ -55,8 +61,11 @@ du texte vers du texte, pas du texte vers un chiffre. Hors périmètre v1.
 
 ## Flux d'une conversation
 
-Le canal reçoit un message et le transmet avec l'identifiant de la
-demande en cours.
+Le canal résout le tenant à partir du slug, puis reçoit un message et le
+transmet avec l'identifiant de la demande en cours. Si le slug est absent
+ou inconnu, la conversation ne démarre pas et un message d'erreur clair
+est affiché : sans tenant il n'y a pas de catalogue, donc aucun montant
+possible.
 
 L'extracteur lit le message et le besoin déjà connu, et renvoie le besoin
 mis à jour. Un seul appel au LLM.
@@ -65,18 +74,21 @@ L'orchestrateur compare le besoin aux informations obligatoires (type,
 date, ville, nombre d'invités, quartier). S'il en manque une, il produit
 une question. Sinon il passe au chiffrage.
 
-Au chiffrage, le moteur charge le modèle d'événement, filtre le catalogue
-pour chaque catégorie attendue, calcule les quantités selon les règles,
-compose les lignes et additionne.
+Au chiffrage, le moteur charge le modèle d'événement, sélectionne dans le
+catalogue les ressources de chaque catégorie attendue, calcule les
+quantités selon les règles, compose les lignes et additionne. Pour les
+salles, la sélection filtre sur la capacité et trie sur le quartier
+souhaité (voir D17).
 
 Le PDF est généré, enregistré, et le canal l'envoie. La demande apparaît
 dans le tableau de bord du tenant.
 
 ## Cas particuliers traités par le moteur
 
-Aucune ressource ne correspond (capacité trop grande, quartier sans
-salle) : le moteur le déclare. L'agent l'annonce et propose de
-transmettre à un commercial. Il n'invente rien.
+Aucune ressource ne correspond, ce qui pour une salle signifie qu'aucune
+n'a la capacité suffisante, le quartier n'éliminant rien : le moteur le
+déclare. L'agent l'annonce et propose de transmettre à un commercial. Il
+n'invente rien.
 
 Plusieurs ressources correspondent : le moteur les renvoie toutes,
 l'agent les présente, le prospect choisit.
@@ -98,15 +110,36 @@ de tester toute l'application sans appeler le moindre modèle.
 Fournisseur retenu : [À COMPLÉTER, viser un palier gratuit. Les offres
 gratuites et leurs quotas changent souvent, à vérifier au démarrage.]
 
+## Tableau de bord et authentification
+
+Le tableau de bord est une application Streamlit distincte du chat, avec
+sa propre porte d'entrée. Un gestionnaire s'y connecte par email et mot
+de passe. La connexion établit le tenant_id de la session ; toutes les
+requêtes du tableau de bord filtrent dessus, sans exception.
+
+L'authentification est volontairement minimale (voir D18) : vérification
+du mot de passe haché, session Streamlit, déconnexion. Pas de
+récupération de mot de passe, pas de rôles.
+
+Le tableau de bord expose trois écrans : les indicateurs, le catalogue en
+lecture et écriture, les demandes reçues en lecture seule avec le détail
+du devis émis.
+
+Le calcul des indicateurs est du code Python déterministe sur des
+requêtes SQL, au même titre que le moteur de devis, et testé de la même
+manière.
+
 ## Structure du dépôt
 
 Les modules portent le nom de leur fonction, pas celui du produit.
 
-src/canaux/        streamlit, whatsapp
+src/canaux/        streamlit, whatsapp, résolution du tenant
 src/extraction/    interface LLM, prompts, mock
 src/orchestration/ machine à états, questions
 src/moteur/        calcul du devis, règles de quantité
 src/catalogue/     accès aux ressources
+src/indicateurs/   calcul des KPI du tableau de bord
+src/auth/          hachage, vérification, session
 src/pdf/           génération du document
 src/db/            modèles SQLAlchemy, migrations
 dashboard/         interface gestionnaire Streamlit
