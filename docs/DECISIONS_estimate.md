@@ -127,4 +127,29 @@ abouti à une vente, information que le produit ne détient pas puisqu'il
 s'arrête à l'estimation (voir D08). Afficher un chiffre qu'on ne sait pas
 justifier est aussi grave qu'un montant faux sur un devis.
 
+## D20 — Options plafonnées à trois pour les catégories hors salle (2026-09-05)
+Quand plusieurs ressources correspondent à une catégorie autre que la salle
+(restauration, décoration, mobilier...), le moteur les trie par prix
+croissant et n'en retient que trois. La salle reste régie par D17/D03 sans
+aucune limite : sa capacité est une contrainte physique qui justifie de
+montrer toutes les options restantes.
+Raison : présenter le catalogue entier d'une catégorie dans une
+conversation en langage naturel noierait le prospect sous les choix ;
+trois options triées par prix restent lisibles dans un échange de chat.
+Contrepartie : cette règle nuance D03 (« on les présente toutes ») pour les
+catégories non contraintes par la capacité. Une évolution possible, non
+retenue en v1 pour rester simple, serait de laisser le prospect indiquer un
+prix maximum par catégorie afin d'affiner ce filtrage plutôt que de
+plafonner arbitrairement à trois.
+
+## D21 — Durée de l'événement obligatoire, jamais déduite (2026-09-05)
+duree_jours rejoint la liste des informations obligatoires que
+l'orchestrateur demande avant de passer au chiffrage (avec type, date,
+ville, nombre d'invités, quartier). Le moteur ne lui applique aucune
+valeur par défaut.
+Raison : la durée détermine directement des quantités facturées (une
+salle louée à la journée, du personnel par jour). Une valeur par défaut
+silencieuse serait un montant partiellement deviné plutôt qu'extrait du
+besoin réel, ce qui contredit D01.
+
 [Décisions suivantes à ajouter au fil du développement, avec la date.]

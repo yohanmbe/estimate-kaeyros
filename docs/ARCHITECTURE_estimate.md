@@ -71,8 +71,8 @@ L'extracteur lit le message et le besoin déjà connu, et renvoie le besoin
 mis à jour. Un seul appel au LLM.
 
 L'orchestrateur compare le besoin aux informations obligatoires (type,
-date, ville, nombre d'invités, quartier). S'il en manque une, il produit
-une question. Sinon il passe au chiffrage.
+date, ville, nombre d'invités, quartier, durée en jours — voir D21). S'il
+en manque une, il produit une question. Sinon il passe au chiffrage.
 
 Au chiffrage, le moteur charge le modèle d'événement, sélectionne dans le
 catalogue les ressources de chaque catégorie attendue, calcule les

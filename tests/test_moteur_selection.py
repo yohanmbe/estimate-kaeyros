@@ -1,0 +1,125 @@
+from src.moteur.selection import (
+    filtrer_salles_par_capacite,
+    rechercher_candidats_categorie,
+    rechercher_candidats_salle,
+    trier_salles_par_quartier,
+)
+from src.moteur.types import BesoinChiffrage, RessourceCatalogue
+
+
+def salle(nom: str, capacite: int, quartier: str, prix: int) -> RessourceCatalogue:
+    return RessourceCatalogue(
+        id=nom,
+        nom=nom,
+        categorie="salle",
+        unite_facturation="jour",
+        prix_unitaire=prix,
+        attributs={"capacite": capacite, "quartier": quartier},
+    )
+
+
+def prestation(nom: str, categorie: str, prix: int) -> RessourceCatalogue:
+    return RessourceCatalogue(
+        id=nom,
+        nom=nom,
+        categorie=categorie,
+        unite_facturation="forfait",
+        prix_unitaire=prix,
+        attributs={},
+    )
+
+
+def test_salle_capacite_insuffisante_est_ecartee():
+    salles = [salle("Royale", 150, "Bastos", 300_000), salle("Etoile", 300, "Bastos", 500_000)]
+
+    resultat = filtrer_salles_par_capacite(salles, nombre_invites=300)
+
+    assert [s.nom for s in resultat] == ["Etoile"]
+
+
+def test_salle_capacite_egale_au_nombre_invites_est_retenue():
+    salles = [salle("Etoile", 300, "Bastos", 500_000)]
+
+    resultat = filtrer_salles_par_capacite(salles, nombre_invites=300)
+
+    assert [s.nom for s in resultat] == ["Etoile"]
+
+
+def test_salle_quartier_souhaite_remonte_en_tete_sans_ecarter_les_autres():
+    salles = [salle("Zenith", 400, "Tsinga", 450_000), salle("Etoile", 300, "Bastos", 500_000)]
+
+    resultat = trier_salles_par_quartier(salles, quartier_souhaite="Bastos")
+
+    assert [s.nom for s in resultat] == ["Etoile", "Zenith"]
+
+
+def test_salle_hors_quartier_reste_proposee_si_aucune_dans_le_quartier_souhaite():
+    salles = [salle("Zenith", 400, "Tsinga", 450_000)]
+
+    resultat = trier_salles_par_quartier(salles, quartier_souhaite="Bastos")
+
+    assert [s.nom for s in resultat] == ["Zenith"]
+
+
+def test_mariage_300_invites_bastos_filtre_puis_trie_les_salles():
+    salles = [
+        salle("Royale", 150, "Bastos", 300_000),
+        salle("Zenith", 400, "Tsinga", 450_000),
+        salle("Etoile", 300, "Bastos", 500_000),
+    ]
+    besoin = BesoinChiffrage(
+        nombre_invites=300, duree_jours=1, quartier_souhaite="Bastos", budget_declare=None
+    )
+
+    resultat = rechercher_candidats_salle(salles, besoin)
+
+    assert [s.nom for s in resultat] == ["Etoile", "Zenith"]
+
+
+def test_categorie_hors_salle_limitee_a_trois_options_triees_par_prix():
+    besoin = BesoinChiffrage(
+        nombre_invites=300, duree_jours=1, quartier_souhaite="Bastos", budget_declare=None
+    )
+    restaurations = [
+        prestation("Menu Prestige", "restauration", 15_000),
+        prestation("Menu Standard", "restauration", 8_000),
+        prestation("Menu Confort", "restauration", 10_000),
+        prestation("Menu Luxe", "restauration", 20_000),
+    ]
+
+    resultat = rechercher_candidats_categorie(restaurations, "restauration", besoin)
+
+    assert [r.nom for r in resultat] == ["Menu Standard", "Menu Confort", "Menu Prestige"]
+
+
+def test_mariage_une_seule_salle_capacite_suffisante_est_proposee():
+    salles = [salle("Etoile", 300, "Bastos", 500_000)]
+    besoin = BesoinChiffrage(
+        nombre_invites=300, duree_jours=1, quartier_souhaite="Bastos", budget_declare=None
+    )
+
+    resultat = rechercher_candidats_salle(salles, besoin)
+
+    assert [s.nom for s in resultat] == ["Etoile"]
+
+
+def test_mariage_aucune_salle_navait_la_capacite_suffisante_ne_renvoie_rien():
+    salles = [salle("Royale", 150, "Bastos", 300_000), salle("Cocotiers", 100, "Tsinga", 200_000)]
+    besoin = BesoinChiffrage(
+        nombre_invites=300, duree_jours=1, quartier_souhaite="Bastos", budget_declare=None
+    )
+
+    resultat = rechercher_candidats_salle(salles, besoin)
+
+    assert resultat == []
+
+
+def test_categorie_salle_ne_subit_aucune_limite_de_nombre():
+    besoin = BesoinChiffrage(
+        nombre_invites=50, duree_jours=1, quartier_souhaite="Bastos", budget_declare=None
+    )
+    salles = [salle(f"Salle {i}", 100, "Bastos", 100_000) for i in range(5)]
+
+    resultat = rechercher_candidats_categorie(salles, "salle", besoin)
+
+    assert len(resultat) == 5
