@@ -35,6 +35,7 @@ SCENARIO_SANS_SALLE = "900 invités, salle insuffisante"
 # L'écran sépare les milliers par des espaces insécables, écrits ici en clair
 TOTAL_MARIAGE_300 = "3 300 000 FCFA"
 TOTAL_MARIAGE_900_SANS_SALLE = "8 550 000 FCFA"
+TOTAL_MARIAGE_300_SANS_SALLE = "2 850 000 FCFA"
 
 
 def creer_tenant_etoile(session: Session, actif: bool = True) -> Tenant:
@@ -131,7 +132,7 @@ def test_besoin_incomplet_fait_poser_une_question_avant_tout_montant(base_branch
     ecran = repondre(lancer_ecran("etoile"), ["Je prépare un mariage"])
 
     texte = texte_affiche(ecran)
-    assert "il me manque" in texte
+    assert "Il me manque" in texte
     assert "FCFA" not in texte
 
 
@@ -153,6 +154,60 @@ def test_mariage_300_invites_bastos_affiche_le_total_de_lestimation(base_branche
     texte = texte_affiche(ecran)
     assert TOTAL_MARIAGE_300 in texte
     assert "non contractuelle" in texte
+
+
+def test_message_envoye_apres_avoir_choisi_une_salle_ne_perd_pas_ce_choix(base_branchee):
+    """Le schéma JSON de l'extracteur n'inclut pas ressources_choisies : un
+    message envoyé après un choix ne doit pas faire redemander ce choix."""
+    creer_tenant_etoile(base_branchee)
+    ecran = choisir_premiere_option(repondre(lancer_ecran("etoile"), MESSAGES_MARIAGE_300))
+    assert TOTAL_MARIAGE_300 in texte_affiche(ecran)
+
+    ecran = repondre(ecran, ["merci"])
+
+    texte = texte_affiche(ecran)
+    assert TOTAL_MARIAGE_300 in texte
+    assert "Choisissez votre salle" not in texte
+
+
+def test_recapitulatif_besoin_reflete_les_informations_connues(base_branchee):
+    creer_tenant_etoile(base_branchee)
+
+    ecran = repondre(lancer_ecran("etoile"), MESSAGES_MARIAGE_300)
+
+    texte = texte_affiche(ecran)
+    assert "Votre événement" in texte
+    assert "300" in texte
+    assert "Bastos" in texte
+
+
+def test_fournisseur_reel_affiche_le_recapitulatif_sans_nommer_le_fournisseur(
+    base_branchee, monkeypatch
+):
+    creer_tenant_etoile(base_branchee)
+    monkeypatch.setenv("LLM_PROVIDER", "groq")
+    monkeypatch.setenv("GROQ_API_KEY", "cle-de-test")
+
+    texte = texte_affiche(lancer_ecran("etoile"))
+
+    assert "Votre événement" in texte
+    assert "groq" not in texte.lower()
+    assert "à préciser" in texte
+
+
+def test_prospect_peut_refuser_une_categorie_plutot_que_choisir(base_branchee):
+    creer_tenant_etoile(base_branchee)
+    ecran = repondre(lancer_ecran("etoile"), MESSAGES_MARIAGE_300)
+
+    bouton_refus = next(bouton for bouton in ecran.button if bouton.key == "exclure-salle")
+    ecran = bouton_refus.click().run()
+
+    texte = texte_affiche(ecran)
+    assert "Salle Bastos" not in texte
+    assert "Salle Mvan" not in texte
+    assert "Chaise Napoléon" in texte
+    assert TOTAL_MARIAGE_300_SANS_SALLE in texte
+    assert "Non chiffré" not in texte
 
 
 def test_aucune_salle_assez_grande_est_annoncee_sans_bloquer_le_reste(base_branchee):

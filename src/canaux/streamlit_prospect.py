@@ -27,6 +27,12 @@ from src.catalogue.ressources import (  # noqa: E402
     charger_ressources_actives,
 )
 from src.db.session import ouvrir_session  # noqa: E402
+from src.extraction.fabrique import (  # noqa: E402
+    FOURNISSEUR_MOCK,
+    construire_extracteur,
+    fournisseur_actif,
+)
+from src.extraction.interface import InterfaceLLM  # noqa: E402
 from src.extraction.mock import ExtracteurMock  # noqa: E402
 from src.extraction.types import Besoin  # noqa: E402
 from src.moteur.types import ResultatChiffrage, RessourceCatalogue  # noqa: E402
@@ -88,6 +94,19 @@ SCENARIOS_DEMONSTRATION: dict[str, list[Besoin]] = {
             ville="Yaoundé",
             quartier_souhaite="Bastos",
         ),
+        Besoin(
+            type_evenement="mariage",
+            date_evenement="2026-12-12",
+            ville="Yaoundé",
+            quartier_souhaite="Bastos",
+            nombre_invites=300,
+            duree_jours=1,
+        ),
+        # Un message de plus une fois le besoin complet (« merci », par
+        # exemple) : le fournisseur réel renverrait le même besoin déjà connu,
+        # sans ressources_choisies puisque ce champ n'existe pas dans son
+        # schéma. Ce quatrième besoin le reproduit fidèlement pour la
+        # démonstration comme pour les tests.
         Besoin(
             type_evenement="mariage",
             date_evenement="2026-12-12",
@@ -174,6 +193,19 @@ FEUILLE_DE_STYLE = """
 .bulle__auteur{display:block;font-size:.66rem;letter-spacing:.12em;text-transform:uppercase;
   opacity:.65;margin-bottom:.3rem;font-weight:700;}
 
+/* Indicateur de frappe pendant l'appel au fournisseur, à la place d'un texte
+   du type « Je vous écoute » : trois points qui rebondissent, comme la
+   plupart des interfaces de conversation. */
+.frappe{display:inline-flex;gap:.28rem;align-items:center;padding:.15rem 0;}
+.frappe span{width:.4rem;height:.4rem;border-radius:50%;background:var(--gris);
+  opacity:.4;animation:frappe-rebond 1.1s infinite ease-in-out;}
+.frappe span:nth-child(2){animation-delay:.15s;}
+.frappe span:nth-child(3){animation-delay:.3s;}
+@keyframes frappe-rebond{
+  0%,80%,100%{opacity:.35;transform:translateY(0);}
+  40%{opacity:1;transform:translateY(-3px);}
+}
+
 .invite{font-size:.82rem;letter-spacing:.1em;text-transform:uppercase;color:var(--bleu);
   margin:1.3rem 0 .6rem;font-weight:800;}
 
@@ -187,11 +219,23 @@ FEUILLE_DE_STYLE = """
 [class*="st-key-option-"]:hover{box-shadow:0 8px 24px rgba(16,19,34,.10);}
 [class*="st-key-option-"] [data-testid="stVerticalBlockBorderWrapper"]{border:none;box-shadow:none;
   background:transparent;}
-[class*="st-key-option-"] [data-testid="stHorizontalBlock"]{padding:1.05rem 1.2rem;
-  align-items:center;gap:1rem;}
+/* !important : le conteneur de colonnes de Streamlit porte parfois un padding
+   inline (via le réglage "gap"), qui l'emporterait sinon sur cette règle et
+   laisserait le texte revenir au bord de la carte. */
+[class*="st-key-option-"] [data-testid="stHorizontalBlock"]{padding:1.05rem 1.2rem !important;
+  align-items:center !important;gap:1rem !important;}
+[class*="st-key-option-"] [data-testid="stColumn"]{padding:0 !important;}
 [class*="st-key-option-"] .stButton>button{background:var(--bleu);color:#fff;border:none;
   border-radius:10px;font-weight:700;padding:.6rem 0;}
 [class*="st-key-option-"] .stButton>button:hover{background:var(--bleu-fonce);color:#fff;}
+
+/* Bouton de refus d'une catégorie : discret, jamais en concurrence visuelle
+   avec les cartes « Choisir ». */
+[class*="st-key-exclure-"] button{background:transparent;color:var(--gris);
+  border:1px dashed var(--trait);border-radius:10px;font-weight:600;box-shadow:none;
+  margin-top:.2rem;}
+[class*="st-key-exclure-"] button:hover{color:var(--orange-texte);
+  border-color:#ffd7b8;background:var(--orange-pale);}
 
 .option__nom{font-weight:700;color:var(--encre);font-size:1rem;line-height:1.35;}
 .option__prix{color:var(--bleu);font-weight:800;font-variant-numeric:tabular-nums;
@@ -251,10 +295,22 @@ FEUILLE_DE_STYLE = """
 section[data-testid="stSidebar"]{
   background:linear-gradient(180deg,var(--bleu-pale) 0%,var(--fond) 260px);
   border-right:1px solid var(--trait);min-width:280px !important;}
-[class*="st-key-demo-panneau"]{background:var(--surface);border:1px solid var(--trait);
-  border-radius:16px;padding:1.05rem 1.1rem .3rem;box-shadow:0 2px 10px rgba(16,19,34,.05);}
+[class*="st-key-panneau-"]{background:var(--surface);border:1px solid var(--trait);
+  border-radius:16px;padding:1.05rem 1.1rem;box-shadow:0 2px 10px rgba(16,19,34,.05);
+  margin-bottom:.75rem;}
+[class*="st-key-panneau-demo"]{padding-bottom:.3rem;}
 .demo__titre{font-size:.7rem;letter-spacing:.14em;text-transform:uppercase;color:var(--orange-texte);
   font-weight:800;margin-bottom:.3rem;}
+
+/* Récapitulatif du besoin en barre latérale : un repère pour le prospect,
+   pas un outil de débogage — aucun détail d'implémentation n'y figure. */
+.recap__ligne{display:flex;justify-content:space-between;gap:.75rem;font-size:.83rem;
+  padding:.4rem 0;border-bottom:1px dashed var(--trait);}
+.recap__ligne:last-child{border-bottom:none;padding-bottom:0;}
+.recap__ligne:first-child{padding-top:0;}
+.recap__cle{color:var(--gris);font-weight:600;}
+.recap__valeur{color:var(--bleu-fonce);font-weight:700;text-align:right;}
+.recap__valeur--manquant{color:#b6bccd;font-weight:500;}
 
 [data-testid="stChatInput"]{border-radius:16px;}
 </style>
@@ -275,7 +331,7 @@ def main() -> None:
         st.stop()
 
     _initialiser_conversation_si_absente(tenant)
-    _afficher_panneau_demonstration(tenant)
+    _afficher_panneau_lateral(tenant)
 
     if st.session_state.modele is None:
         _afficher_arret(
@@ -343,9 +399,7 @@ def _initialiser_conversation_si_absente(tenant: TenantContexte) -> None:
 def _reinitialiser_conversation(tenant: TenantContexte, nom_scenario: str) -> None:
     """Repart d'un besoin vide et d'un extracteur neuf"""
     st.session_state.besoin = Besoin()
-    st.session_state.extracteur = ExtracteurMock(
-        besoins_a_renvoyer=list(SCENARIOS_DEMONSTRATION[nom_scenario])
-    )
+    st.session_state.extracteur = _extracteur_de_la_conversation(nom_scenario)
     st.session_state.scenario_actif = nom_scenario
     st.session_state.historique = [
         (
@@ -357,6 +411,18 @@ def _reinitialiser_conversation(tenant: TenantContexte, nom_scenario: str) -> No
     ]
 
 
+def _extracteur_de_la_conversation(nom_scenario: str) -> InterfaceLLM:
+    """Extracteur du fournisseur configuré dans LLM_PROVIDER.
+
+    Seul le mock reçoit un scénario : ne consultant aucun modèle, il n'a que
+    ces réponses préparées pour faire avancer le besoin. Les fournisseurs
+    réels lisent les messages du prospect, il n'y a rien à leur souffler.
+    """
+    if fournisseur_actif() == FOURNISSEUR_MOCK:
+        return ExtracteurMock(besoins_a_renvoyer=list(SCENARIOS_DEMONSTRATION[nom_scenario]))
+    return construire_extracteur()
+
+
 def _decider() -> Decision:
     """Recalcule la décision courante à partir du besoin et du catalogue"""
     besoin = st.session_state.besoin
@@ -365,12 +431,32 @@ def _decider() -> Decision:
 
 
 def _traiter_message_prospect(message: str) -> None:
-    """Enregistre le message, met à jour le besoin, puis fait répondre l'agent"""
+    """Enregistre le message, met à jour le besoin, puis fait répondre l'agent.
+
+    L'attente est visible : avec un fournisseur réel, ce tour de conversation
+    tient deux appels réseau, l'extraction puis la reformulation.
+    """
     st.session_state.historique.append((PROSPECT, message))
-    st.session_state.besoin = st.session_state.extracteur.extraire_besoin(
-        message, st.session_state.besoin
+    espace_frappe = st.empty()
+    espace_frappe.markdown(
+        '<div class="fil"><div class="bulle bulle--agent">'
+        '<span class="bulle__auteur">Estimate</span>'
+        '<div class="frappe"><span></span><span></span><span></span></div>'
+        "</div></div>",
+        unsafe_allow_html=True,
+    )
+    besoin_avant = st.session_state.besoin
+    besoin_extrait = st.session_state.extracteur.extraire_besoin(message, besoin_avant)
+    # ressources_choisies n'existe pas dans le schéma JSON de l'extracteur : ce
+    # champ n'est jamais lu ni écrit par le LLM (D04), seulement par les clics
+    # du prospect. Sans cette ligne, le premier message envoyé après un choix
+    # de ressource l'effacerait silencieusement, puisque le Besoin reconstruit
+    # par l'extracteur repart toujours d'une liste vide.
+    st.session_state.besoin = replace(
+        besoin_extrait, ressources_choisies=besoin_avant.ressources_choisies
     )
     _repondre()
+    espace_frappe.empty()
 
 
 def _enregistrer_choix(ressource: RessourceCatalogue) -> None:
@@ -380,6 +466,18 @@ def _enregistrer_choix(ressource: RessourceCatalogue) -> None:
         besoin, ressources_choisies=besoin.ressources_choisies + (ressource.id,)
     )
     st.session_state.historique.append((PROSPECT, f"Je retiens : {ressource.nom}"))
+    _repondre()
+
+
+def _exclure_categorie(categorie: str) -> None:
+    """Retire une catégorie du besoin : le prospect n'en veut pas, le moteur ne la chiffrera pas"""
+    besoin = st.session_state.besoin
+    st.session_state.besoin = replace(
+        besoin, prestations_exclues=besoin.prestations_exclues + (categorie,)
+    )
+    st.session_state.historique.append(
+        (PROSPECT, f"Je ne veux pas de {libelle_categorie(categorie)}")
+    )
     _repondre()
 
 
@@ -473,7 +571,7 @@ def _afficher_suite(decision: Decision, tenant: TenantContexte) -> None:
 
 
 def _afficher_options(decision: QuestionChoixRessources) -> None:
-    """Présente les ressources candidates, le prospect tranche (D03)"""
+    """Présente les ressources candidates, le prospect tranche (D03) — ou n'en veut aucune"""
     st.markdown(
         f'<p class="invite">Choisissez votre {libelle_categorie(decision.categorie)}</p>',
         unsafe_allow_html=True,
@@ -490,6 +588,13 @@ def _afficher_options(decision: QuestionChoixRessources) -> None:
             ):
                 _enregistrer_choix(candidat)
                 st.rerun()
+
+    if st.button(
+        f"Je ne veux pas de {libelle_categorie(decision.categorie)}",
+        key=f"exclure-{decision.categorie}",
+    ):
+        _exclure_categorie(decision.categorie)
+        st.rerun()
 
 
 def _carte_option(ressource: RessourceCatalogue, quartier_souhaite: str | None) -> str:
@@ -646,27 +751,61 @@ def _logo_marque() -> str:
     return '<span class="marque__pastille"></span>'
 
 
-def _afficher_panneau_demonstration(tenant: TenantContexte) -> None:
-    """Panneau latéral de démonstration : choisit le scénario joué par le mock"""
+def _afficher_panneau_lateral(tenant: TenantContexte) -> None:
+    """Panneau latéral : sélecteur de scénario en mock, récapitulatif du besoin sinon"""
+    scenario = st.session_state.scenario_actif
     with st.sidebar:
         st.markdown(
             f'<div class="marque">{_logo_marque()}<span class="marque__nom">Estimate</span></div>',
             unsafe_allow_html=True,
         )
-        with st.container(key="demo-panneau"):
-            st.markdown('<p class="demo__titre">Mode démonstration</p>', unsafe_allow_html=True)
-            st.caption(
-                "L'extraction est simulée, sans appel réseau. ExtracteurGroq prendra "
-                "la place du mock une fois le parcours validé."
-            )
-            scenario = st.selectbox(
-                "Scénario joué", list(SCENARIOS_DEMONSTRATION), key="scenario"
-            )
-            recommencer = st.button("Recommencer", use_container_width=True)
+        if fournisseur_actif() == FOURNISSEUR_MOCK:
+            with st.container(key="panneau-demo"):
+                scenario = _afficher_reglages_mock()
+
+        with st.container(key="panneau-recap"):
+            _afficher_recapitulatif_besoin()
+
+        recommencer = st.button("Recommencer", use_container_width=True)
 
     if recommencer or scenario != st.session_state.scenario_actif:
         _reinitialiser_conversation(tenant, scenario)
         st.rerun()
+
+
+def _afficher_reglages_mock() -> str:
+    """Réglages du mode démonstration, renvoie le scénario choisi"""
+    st.markdown('<p class="demo__titre">Mode démonstration</p>', unsafe_allow_html=True)
+    st.caption(
+        "L'extraction est simulée, sans appel réseau : le mock rejoue un "
+        "scénario préparé, quels que soient vos messages."
+    )
+    return st.selectbox("Scénario joué", list(SCENARIOS_DEMONSTRATION), key="scenario")
+
+
+def _afficher_recapitulatif_besoin() -> None:
+    """Récapitulatif du besoin déjà connu : un repère pour le prospect, pas un outil de débogage"""
+    st.markdown('<p class="demo__titre">Votre événement</p>', unsafe_allow_html=True)
+    besoin = st.session_state.besoin
+    champs = (
+        ("Type", besoin.type_evenement),
+        ("Date", besoin.date_evenement),
+        ("Ville", besoin.ville),
+        ("Quartier", besoin.quartier_souhaite),
+        ("Invités", besoin.nombre_invites),
+        ("Durée", f"{besoin.duree_jours} jour(s)" if besoin.duree_jours else None),
+    )
+    lignes = "".join(
+        f'<div class="recap__ligne"><span class="recap__cle">{cle}</span>'
+        + (
+            f'<span class="recap__valeur">{escape(str(valeur))}</span>'
+            if valeur is not None
+            else '<span class="recap__valeur recap__valeur--manquant">à préciser</span>'
+        )
+        + "</div>"
+        for cle, valeur in champs
+    )
+    st.markdown(lignes, unsafe_allow_html=True)
 
 
 def _formater_montant(montant: int) -> str:

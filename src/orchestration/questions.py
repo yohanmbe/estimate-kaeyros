@@ -25,9 +25,14 @@ LIBELLES_CATEGORIES: dict[str, str] = {
 
 
 def formuler_question_besoin(champs_manquants: tuple[str, ...]) -> str:
-    """Compose une seule question couvrant tous les champs manquants"""
+    """Compose une seule question couvrant tous les champs manquants.
+
+    Pas de préambule fixe (« pour préparer votre estimation... ») : répété à
+    chaque tour, il finit par lasser. Le contenu va droit au but, la
+    reformulation se charge de le rendre naturel.
+    """
     libelles = [LIBELLES_CHAMPS.get(champ, champ) for champ in champs_manquants]
-    return f"Pour préparer votre estimation, il me manque {enumerer(libelles)}."
+    return f"Il me manque {enumerer(libelles)}."
 
 
 def libelle_categorie(categorie: str) -> str:

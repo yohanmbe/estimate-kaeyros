@@ -188,4 +188,27 @@ du LLM (voir ARCHITECTURE.md, Couche LLM) : le code de Mistral a été
 conservé sans être supprimé, une nouvelle implémentation a été ajoutée
 à côté, et aucune autre couche du système n'a été modifiée.
 
+## D22 — Une plage de dates explicite détermine la durée, une date seule non (2026-09-06)
+
+Si le prospect donne une plage avec ses deux bornes (« du 12 au 14
+décembre »), duree_jours est calculé à partir de cette plage par le LLM lors
+de l'extraction (comptage inclusif : 12, 13, 14 décembre = 3 jours).
+Raison : ce n'est pas une valeur par défaut, c'est un calcul sur une
+information réellement fournie par le prospect, ce qui ne contredit pas D01.
+Une date seule continue d'exiger une durée explicite : D21 reste inchangé
+pour ce cas, qui reste le plus fréquent en pratique.
+
+## D23 — Un réessai sur JSON tronqué à l'extraction (2026-09-06)
+
+Découvert en testant D22 : le modèle produit parfois un JSON tronqué juste
+avant l'accolade finale, rejeté par la validation de l'API. Rare (environ un
+appel sur cinq dans le pire cas observé) et transitoire : une nouvelle
+tentative immédiate suffit presque toujours. extraire_besoin (Groq et
+Mistral) retente une fois avant d'abandonner et de renvoyer le besoin
+inchangé.
+Raison : sans ce réessai, un tour de conversation sur cinq perdait en
+silence ce que le prospect venait de dire, qui devait le répéter. Mesuré
+comme préexistant à D22, pas causé par l'allongement du prompt (huit essais
+sur chaque version du prompt, aucun échec des deux côtés).
+
 [Décisions suivantes à ajouter au fil du développement, avec la date.]

@@ -1,10 +1,23 @@
-"""Fixtures partagées aux tests touchant la base de données"""
+"""Fixtures partagées aux tests touchant la base de données ou l'extraction"""
 import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 
 from src.db.models import Base
 from src.db.session import _engine
+from src.extraction.fabrique import FOURNISSEUR_MOCK
+
+
+@pytest.fixture(autouse=True)
+def extraction_sans_reseau(monkeypatch):
+    """Force le mock pour tous les tests, quel que soit le .env de la machine.
+
+    Sans ce garde-fou, un poste configuré en LLM_PROVIDER=groq ferait appeler
+    un vrai modèle par les tests de l'écran (voir CONVENTIONS.md : aucun test
+    n'appelle un vrai LLM). Les tests d'intégration, eux, construisent leur
+    extracteur explicitement et ne passent pas par cette variable.
+    """
+    monkeypatch.setenv("LLM_PROVIDER", FOURNISSEUR_MOCK)
 
 
 @pytest.fixture()
