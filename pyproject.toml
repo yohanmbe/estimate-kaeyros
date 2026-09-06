@@ -8,10 +8,16 @@ dependencies = [
     "alembic>=1.19.1",
     "fastapi[standard]>=0.141.1",
     "fpdf2>=2.8.8",
+    "mistralai>=2.9.4",
     "psycopg2-binary>=2.9.12",
     "pytest>=9.1.1",
     "python-dotenv>=1.2.3",
     "sqlalchemy>=2.0.52",
     "streamlit>=1.63.0",
     "uvicorn>=0.52.4",
+]
+
+[tool.pytest.ini_options]
+markers = [
+    "integration: appelle un vrai service externe (API Mistral). Exclu par défaut, lancer avec -m integration.",
 ]
