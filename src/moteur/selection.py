@@ -12,9 +12,15 @@ def filtrer_salles_par_capacite(
 
 
 def trier_salles_par_quartier(
-    salles: list[RessourceCatalogue], quartier_souhaite: str
+    salles: list[RessourceCatalogue], quartier_souhaite: str | None
 ) -> list[RessourceCatalogue]:
-    """Remonte en tête les salles du quartier souhaité, sans en écarter aucune"""
+    """Remonte en tête les salles du quartier souhaité, sans en écarter aucune.
+
+    Sans quartier souhaité, aucune préférence à appliquer : l'ordre reçu
+    (déjà filtré par capacité) est conservé tel quel.
+    """
+    if quartier_souhaite is None:
+        return list(salles)
     return sorted(salles, key=lambda salle: salle.attributs.get("quartier") != quartier_souhaite)
 
 

@@ -61,6 +61,14 @@ def test_salle_hors_quartier_reste_proposee_si_aucune_dans_le_quartier_souhaite(
     assert [s.nom for s in resultat] == ["Zenith"]
 
 
+def test_absence_de_quartier_souhaite_ne_change_pas_l_ordre():
+    salles = [salle("Zenith", 400, "Tsinga", 450_000), salle("Etoile", 300, "Bastos", 500_000)]
+
+    resultat = trier_salles_par_quartier(salles, quartier_souhaite=None)
+
+    assert [s.nom for s in resultat] == ["Zenith", "Etoile"]
+
+
 def test_mariage_300_invites_bastos_filtre_puis_trie_les_salles():
     salles = [
         salle("Royale", 150, "Bastos", 300_000),

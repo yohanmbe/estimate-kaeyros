@@ -32,11 +32,13 @@ class BesoinChiffrage:
 
     Ces champs sont garantis présents par l'orchestrateur avant le passage
     au chiffrage : le moteur ne leur applique aucune valeur par défaut.
+    quartier_souhaite fait exception : il ne sert qu'à trier les salles
+    (D17), jamais à bloquer le chiffrage, il peut donc être absent.
     """
 
     nombre_invites: int
     duree_jours: int
-    quartier_souhaite: str
+    quartier_souhaite: str | None
     budget_declare: int | None
 
 
