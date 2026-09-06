@@ -1,10 +1,12 @@
 from src.moteur.selection import (
     filtrer_salles_par_capacite,
     rechercher_candidats_categorie,
+    rechercher_candidats_par_categorie,
     rechercher_candidats_salle,
+    resoudre_ressources_choisies,
     trier_salles_par_quartier,
 )
-from src.moteur.types import BesoinChiffrage, RessourceCatalogue
+from src.moteur.types import BesoinChiffrage, RegleQuantite, RessourceCatalogue
 
 
 def salle(nom: str, capacite: int, quartier: str, prix: int) -> RessourceCatalogue:
@@ -131,3 +133,59 @@ def test_categorie_salle_ne_subit_aucune_limite_de_nombre():
     resultat = rechercher_candidats_categorie(salles, "salle", besoin)
 
     assert len(resultat) == 5
+
+
+MODELE_DEUX_CATEGORIES = [
+    RegleQuantite(categorie="salle", base="jour"),
+    RegleQuantite(categorie="restauration", base="invite"),
+]
+
+
+def test_categorie_sans_aucune_salle_assez_grande_reste_presente_et_vide():
+    ressources = [salle("Royale", 150, "Bastos", 300_000), prestation("Menu", "restauration", 8_000)]
+    besoin = BesoinChiffrage(
+        nombre_invites=300, duree_jours=1, quartier_souhaite="Bastos", budget_declare=None
+    )
+
+    candidats = rechercher_candidats_par_categorie(ressources, MODELE_DEUX_CATEGORIES, besoin)
+
+    assert candidats["salle"] == []
+    assert [r.nom for r in candidats["restauration"]] == ["Menu"]
+
+
+def test_categorie_absente_du_modele_nest_pas_proposee():
+    ressources = [prestation("Chaise", "mobilier", 1_500)]
+    besoin = BesoinChiffrage(
+        nombre_invites=300, duree_jours=1, quartier_souhaite=None, budget_declare=None
+    )
+
+    candidats = rechercher_candidats_par_categorie(ressources, MODELE_DEUX_CATEGORIES, besoin)
+
+    assert list(candidats) == ["salle", "restauration"]
+
+
+def test_categorie_a_candidat_unique_est_retenue_sans_choix_du_prospect():
+    candidats = {"restauration": [prestation("Menu", "restauration", 8_000)]}
+
+    retenues = resoudre_ressources_choisies(candidats, ids_choisis=())
+
+    assert retenues["restauration"].nom == "Menu"
+
+
+def test_ressource_choisie_par_le_prospect_prime_sur_les_autres_candidates():
+    candidats = {
+        "restauration": [
+            prestation("Menu Standard", "restauration", 8_000),
+            prestation("Menu Prestige", "restauration", 15_000),
+        ]
+    }
+
+    retenues = resoudre_ressources_choisies(candidats, ids_choisis=("Menu Prestige",))
+
+    assert retenues["restauration"].nom == "Menu Prestige"
+
+
+def test_categorie_sans_candidat_nest_associee_a_aucune_ressource():
+    retenues = resoudre_ressources_choisies({"salle": []}, ids_choisis=())
+
+    assert retenues == {}

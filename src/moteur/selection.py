@@ -1,5 +1,5 @@
 """Sélection des ressources candidates pour une catégorie du devis"""
-from src.moteur.types import BesoinChiffrage, RessourceCatalogue
+from src.moteur.types import BesoinChiffrage, RegleQuantite, RessourceCatalogue
 
 NOMBRE_MAX_OPTIONS_PAR_CATEGORIE = 3
 
@@ -59,3 +59,51 @@ def rechercher_candidats_categorie(
         return rechercher_candidats_salle(ressources_categorie, besoin)
     ressources_triees = trier_par_prix_croissant(ressources_categorie)
     return limiter_nombre_options(ressources_triees, NOMBRE_MAX_OPTIONS_PAR_CATEGORIE)
+
+
+def rechercher_candidats_par_categorie(
+    ressources: list[RessourceCatalogue],
+    modele: list[RegleQuantite],
+    besoin: BesoinChiffrage,
+) -> dict[str, list[RessourceCatalogue]]:
+    """Résout les candidats de chaque catégorie attendue, dans l'ordre du modèle.
+
+    Une catégorie sans aucun candidat reste présente avec une liste vide :
+    c'est ce qui permet de l'annoncer au prospect plutôt que de la passer
+    sous silence (cas d'une salle trop petite pour le nombre d'invités).
+    """
+    return {
+        regle.categorie: rechercher_candidats_categorie(
+            [ressource for ressource in ressources if ressource.categorie == regle.categorie],
+            regle.categorie,
+            besoin,
+        )
+        for regle in modele
+    }
+
+
+def resoudre_ressources_choisies(
+    candidats_par_categorie: dict[str, list[RessourceCatalogue]],
+    ids_choisis: tuple[str, ...],
+) -> dict[str, RessourceCatalogue]:
+    """Associe à chaque catégorie la ressource retenue pour le chiffrage.
+
+    Une catégorie à candidat unique est retenue d'office : il n'y a rien à
+    décider. Une catégorie sans candidat reste absente du résultat, le moteur
+    la signalera comme non satisfaite.
+    """
+    retenues: dict[str, RessourceCatalogue] = {}
+    for categorie, candidats in candidats_par_categorie.items():
+        choisie = _trouver_candidat_choisi(candidats, ids_choisis)
+        if choisie is not None:
+            retenues[categorie] = choisie
+        elif len(candidats) == 1:
+            retenues[categorie] = candidats[0]
+    return retenues
+
+
+def _trouver_candidat_choisi(
+    candidats: list[RessourceCatalogue], ids_choisis: tuple[str, ...]
+) -> RessourceCatalogue | None:
+    """Candidat de la catégorie que le prospect a explicitement choisi"""
+    return next((candidat for candidat in candidats if candidat.id in ids_choisis), None)

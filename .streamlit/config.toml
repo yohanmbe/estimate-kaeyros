@@ -1,0 +1,9 @@
+[theme]
+base = "light"
+# Bleu Kaeyros pour les commandes : blanc sur #0f2a96 offre un contraste très
+# élevé, là où l'orange de marque servirait de simple accent décoratif.
+primaryColor = "#0f2a96"
+backgroundColor = "#ffffff"
+secondaryBackgroundColor = "#f6f7fb"
+textColor = "#101322"
+font = "sans serif"

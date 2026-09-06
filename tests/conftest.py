@@ -4,6 +4,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 
 from src.db.models import Base
+from src.db.session import _engine
 
 
 @pytest.fixture()
@@ -18,3 +19,23 @@ def session():
     Base.metadata.create_all(moteur)
     with Session(moteur) as session:
         yield session
+
+
+@pytest.fixture()
+def base_branchee(tmp_path, monkeypatch):
+    """Base SQLite jetable branchée à la place de Postgres, pour tout le test.
+
+    Sert aux tests qui exécutent du code appelant lui-même ouvrir_session(),
+    l'écran Streamlit en particulier. load_dotenv n'écrase pas une variable
+    déjà définie : DATABASE_URL pointe donc bien vers cette base.
+    """
+    url = f"sqlite:///{tmp_path / 'estimate_test.db'}"
+    monkeypatch.setenv("DATABASE_URL", url)
+    _engine.cache_clear()
+
+    moteur = create_engine(url)
+    Base.metadata.create_all(moteur)
+    with Session(moteur) as session:
+        yield session
+
+    _engine.cache_clear()
