@@ -54,6 +54,7 @@ from src.orchestration.types import (  # noqa: E402
     QuestionChoixRessources,
 )
 from src.pdf.generer_devis import generer_pdf_devis  # noqa: E402
+from src.presentation.montant import formater_montant  # noqa: E402
 
 NOM_MODELE_EVENEMENT = "Mariage"
 
@@ -719,7 +720,7 @@ def _carte_option(ressource: RessourceCatalogue, quartier_souhaite: str | None) 
     unite = LIBELLES_UNITES.get(ressource.unite_facturation, ressource.unite_facturation)
     return (
         f'<div class="option__nom">{escape(ressource.nom)}</div>'
-        f'<div class="option__prix">{_formater_montant(ressource.prix_unitaire)} '
+        f'<div class="option__prix">{formater_montant(ressource.prix_unitaire)} '
         f'<span class="option__unite">{escape(unite)}</span></div>'
         f'<div class="option__badges">{_badges_option(ressource, quartier_souhaite)}</div>'
     )
@@ -752,8 +753,8 @@ def _afficher_devis(resultat: ResultatChiffrage, tenant: TenantContexte) -> None
     lignes = "".join(
         f"<tr><td>{escape(ligne.designation)}</td>"
         f'<td class="devis__nb">{ligne.quantite}</td>'
-        f'<td class="devis__nb">{_formater_montant(ligne.prix_unitaire)}</td>'
-        f'<td class="devis__nb">{_formater_montant(ligne.montant)}</td></tr>'
+        f'<td class="devis__nb">{formater_montant(ligne.prix_unitaire)}</td>'
+        f'<td class="devis__nb">{formater_montant(ligne.montant)}</td></tr>'
         for ligne in resultat.lignes
     )
     st.markdown(
@@ -773,7 +774,7 @@ def _afficher_devis(resultat: ResultatChiffrage, tenant: TenantContexte) -> None
           </div>
           <div class="devis__total">
             <span class="devis__total-libelle">Total estimé</span>
-            <span class="devis__total-montant">{_formater_montant(resultat.total)}</span>
+            <span class="devis__total-montant">{formater_montant(resultat.total)}</span>
           </div>
           <div class="devis__mention">Estimation indicative, non contractuelle,
             établie à partir du catalogue de {escape(tenant.nom)}.</div>
@@ -841,7 +842,7 @@ def _afficher_alerte_budget(resultat: ResultatChiffrage, besoin: Besoin) -> None
     _afficher_panneau(
         "info",
         "Au-dessus du budget que vous avez indiqué",
-        f"Votre budget déclaré est de {_formater_montant(besoin.budget_declare or 0)}. "
+        f"Votre budget déclaré est de {formater_montant(besoin.budget_declare or 0)}. "
         "Vous pouvez retirer des prestations ou choisir des options moins onéreuses.",
     )
 
@@ -937,15 +938,6 @@ def _afficher_recapitulatif_besoin() -> None:
         for cle, valeur in champs
     )
     st.markdown(lignes, unsafe_allow_html=True)
-
-
-def _formater_montant(montant: int) -> str:
-    """Montant en FCFA, entier, devise explicite, espaces insécables.
-
-    Les séparateurs sont des espaces insécables : un montant ne doit jamais
-    se couper en fin de ligne.
-    """
-    return f"{montant:,}".replace(",", " ") + " FCFA"
 
 
 if __name__ == "__main__":

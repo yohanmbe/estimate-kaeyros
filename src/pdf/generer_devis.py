@@ -15,6 +15,7 @@ from src.canaux.types import ProspectContexte, TenantContexte
 from src.extraction.types import Besoin
 from src.moteur.types import LigneDevis, ResultatChiffrage
 from src.orchestration.questions import libelle_categorie
+from src.presentation.montant import formater_montant, formater_nombre
 
 MENTION_NON_CONTRACTUELLE = "Estimation indicative, non contractuelle"
 
@@ -119,7 +120,7 @@ def _dessiner_recapitulatif_besoin(pdf: FPDF, besoin: Besoin) -> None:
         ("Date", besoin.date_evenement),
         ("Ville", _mettre_en_forme(besoin.ville)),
         ("Quartier", _mettre_en_forme(besoin.quartier_souhaite)),
-        ("Invités", _formater_nombre(besoin.nombre_invites)),
+        ("Invités", formater_nombre(besoin.nombre_invites) if besoin.nombre_invites else None),
         ("Durée", f"{besoin.duree_jours} jour(s)" if besoin.duree_jours else None),
     ]
     _dessiner_section_cle_valeur(pdf, "VOTRE ÉVÉNEMENT", champs)
@@ -168,11 +169,6 @@ def _mettre_en_forme(valeur: str | None) -> str | None:
     return valeur.strip().title() if valeur else None
 
 
-def _formater_nombre(valeur: int | None) -> str | None:
-    """Entier avec espace comme séparateur de milliers"""
-    return f"{valeur:,}".replace(",", " ") if valeur else None
-
-
 def _tracer_filet_pointille(pdf: FPDF) -> None:
     """Sépare deux lignes du récapitulatif, comme le filet pointillé du chat"""
     y = pdf.get_y()
@@ -216,11 +212,11 @@ def _dessiner_tableau_lignes(pdf: FPDF, lignes: list[LigneDevis]) -> None:
         pdf.cell(largeur_designation, hauteur_ligne, ligne.designation, border=1, fill=True)
         pdf.cell(largeur_quantite, hauteur_ligne, str(ligne.quantite), border=1, fill=True, align="R")
         pdf.cell(
-            largeur_prix, hauteur_ligne, _formater_montant(ligne.prix_unitaire),
+            largeur_prix, hauteur_ligne, formater_montant(ligne.prix_unitaire),
             border=1, fill=True, align="R",
         )
         pdf.cell(
-            largeur_montant, hauteur_ligne, _formater_montant(ligne.montant), border=1, fill=True,
+            largeur_montant, hauteur_ligne, formater_montant(ligne.montant), border=1, fill=True,
             align="R", new_x=XPos.LMARGIN, new_y=YPos.NEXT,
         )
     pdf.set_draw_color(0, 0, 0)
@@ -251,7 +247,7 @@ def _dessiner_total(pdf: FPDF, total: int) -> None:
 
     pdf.set_font("Helvetica", "B", 16)
     pdf.set_text_color(*COULEUR_TITRE_SECTION)
-    pdf.cell(largeur_interieure * 0.55, 8, _formater_montant(total), align="R")
+    pdf.cell(largeur_interieure * 0.55, 8, formater_montant(total), align="R")
     pdf.set_text_color(0, 0, 0)
 
     pdf.set_xy(pdf.l_margin, y + HAUTEUR_BANDEAU_TOTAL_MM)
@@ -308,8 +304,3 @@ def _dessiner_encart(
     pdf.multi_cell(largeur_interieure, 5, texte)
     pdf.set_text_color(0, 0, 0)
     pdf.set_xy(pdf.l_margin, y + hauteur_encart)
-
-
-def _formater_montant(montant: int) -> str:
-    """Montant en FCFA, entier, devise explicite, espaces entre les milliers"""
-    return f"{montant:,}".replace(",", " ") + " FCFA"

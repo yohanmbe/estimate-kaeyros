@@ -7,6 +7,7 @@ from src.canaux.types import ProspectContexte, TenantContexte
 from src.extraction.types import Besoin
 from src.moteur.types import CategorieNonSatisfaite, LigneDevis, ResultatChiffrage
 from src.pdf.generer_devis import generer_pdf_devis
+from src.presentation.montant import formater_montant, formater_nombre
 
 # Le plus petit PNG valide possible (1x1 pixel), pour tester l'insertion du
 # logo sans dépendre d'une bibliothèque d'image dans les tests.
@@ -91,7 +92,9 @@ def test_lignes_et_total_du_resultat_apparaissent_sans_etre_recalcules():
     texte = texte_du_pdf(generer_pdf_devis(resultat, TENANT, BESOIN_MARIAGE_300, PROSPECT))
 
     assert "Menu Standard" in texte
-    assert "2 850 000 FCFA" in texte
+    # Le total est cherché tel que le formatage partagé l'écrit, espaces
+    # insécables compris : le PDF ne met plus en forme les montants lui-même.
+    assert formater_montant(2_850_000) in texte
 
 
 def test_mention_non_contractuelle_toujours_presente():
@@ -162,7 +165,7 @@ def test_nombre_dinvites_eleve_separe_les_milliers_pour_la_lisibilite():
 
     texte = texte_du_pdf(generer_pdf_devis(resultat_mariage_300(), TENANT, besoin_grand_evenement, PROSPECT))
 
-    assert "1 500" in texte
+    assert formater_nombre(1500) in texte
 
 
 def test_coordonnees_du_prospect_apparaissent_pour_que_le_commercial_puisse_le_rappeler():
