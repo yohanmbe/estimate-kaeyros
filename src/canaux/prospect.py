@@ -28,11 +28,16 @@ def enregistrer_prospect(
         consentement_contact=consentement_contact,
     )
     session.add(prospect)
-    session.commit()
-    return ProspectContexte(
+    # Le flush attribue l'identifiant, et le contexte est construit avant le
+    # commit : un objet périmé par le commit serait relu par une requête sur sa
+    # seule clé primaire, sans filtre tenant_id (voir tests/conftest.py).
+    session.flush()
+    contexte = ProspectContexte(
         id=prospect.id,
         nom=prospect.nom,
         telephone=prospect.telephone,
         email=prospect.email,
         consentement_contact=prospect.consentement_contact,
     )
+    session.commit()
+    return contexte

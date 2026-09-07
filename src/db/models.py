@@ -15,6 +15,15 @@ def generate_uuid() -> str:
     return str(uuid.uuid4())
 
 
+# États de Demande.etat (voir DONNEES.md), déclarés ici plutôt qu'en chaînes
+# répétées d'un module à l'autre. ETAT_ABANDONNEE fait partie du modèle de
+# données mais rien ne l'écrit en v1 : le produit n'a aucun moyen de savoir
+# qu'une conversation est abandonnée plutôt qu'en pause.
+ETAT_EN_COURS = "en_cours"
+ETAT_COMPLETE = "complete"
+ETAT_ABANDONNEE = "abandonnee"
+
+
 class Tenant(Base):
     """Une entreprise cliente du produit"""
     __tablename__ = "tenant"
@@ -110,7 +119,7 @@ class Demande(Base):
     tenant_id: Mapped[str] = mapped_column(ForeignKey("tenant.id"), nullable=False, index=True)
     canal: Mapped[str] = mapped_column(String(20), nullable=False)
     prospect_id: Mapped[str | None] = mapped_column(ForeignKey("prospect.id"), index=True)
-    etat: Mapped[str] = mapped_column(String(20), nullable=False, default="en_cours")
+    etat: Mapped[str] = mapped_column(String(20), nullable=False, default=ETAT_EN_COURS)
     besoin: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
     date_creation: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
     date_modification: Mapped[datetime] = mapped_column(
@@ -133,7 +142,10 @@ class Devis(Base):
     total: Mapped[int] = mapped_column(Integer, nullable=False)
     devise: Mapped[str] = mapped_column(String(3), nullable=False, default="XAF")
     date_emission: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
-    date_validite: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    # Jamais renseignée : le produit s'arrête à l'estimation (D08), une date de
+    # validité serait un engagement commercial qu'il ne peut pas tenir. La
+    # colonne reste pour le jour où l'entreprise cliente voudra la porter.
+    date_validite: Mapped[datetime | None] = mapped_column(DateTime)
     chemin_pdf: Mapped[str | None] = mapped_column(String(500))
 
     tenant: Mapped["Tenant"] = relationship(back_populates="devis")

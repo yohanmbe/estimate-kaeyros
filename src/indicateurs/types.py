@@ -19,12 +19,14 @@ class EffectifTranche:
     nombre_demandes: int
 
 
-# Tranches fixes du mariage v1 (voir DONNEES.md : « trois ou quatre tranches »).
+# Tranches fixes du mariage v1 (voir DONNEES.md : « trois ou quatre tranches »),
+# calées sur le marché du mariage à Yaoundé, où 300 invités sont courants.
 # Le triplet (nom, minimum, maximum) borne chaque tranche ; maximum=None pour la
-# dernière, ouverte vers le haut.
+# dernière, ouverte vers le haut. Une borne haute appartient à sa propre tranche
+# et à elle seule : 250 invités tombent dans « 100-250 », 500 dans « 251-500 ».
 TRANCHES_INVITES: tuple[tuple[str, int, int | None], ...] = (
-    ("1-50", 1, 50),
-    ("51-150", 51, 150),
-    ("151-300", 151, 300),
-    ("301+", 301, None),
+    ("< 100", 1, 99),
+    ("100-250", 100, 250),
+    ("251-500", 251, 500),
+    ("500+", 501, None),
 )

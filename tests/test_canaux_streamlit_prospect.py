@@ -5,7 +5,16 @@ from pathlib import Path
 from sqlalchemy.orm import Session
 from streamlit.testing.v1 import AppTest
 
-from src.db.models import ModeleEvenement, Prospect, Ressource, Tenant
+from src.db.models import (
+    ETAT_COMPLETE,
+    ETAT_EN_COURS,
+    Demande,
+    Devis,
+    ModeleEvenement,
+    Prospect,
+    Ressource,
+    Tenant,
+)
 
 CHEMIN_ECRAN = str(
     Path(__file__).resolve().parents[1] / "src" / "canaux" / "streamlit_prospect.py"
@@ -405,3 +414,89 @@ def test_aucune_salle_assez_grande_est_annoncee_sans_bloquer_le_reste(base_branc
     texte = texte_affiche(ecran)
     assert "Aucune salle du catalogue ne peut accueillir 900 invités." in texte
     assert TOTAL_MARIAGE_900_SANS_SALLE in texte
+
+
+def test_conversation_menee_jusquau_devis_laisse_une_demande_et_un_devis_en_base(base_branchee):
+    """Sans cette écriture, la conversation ne laisserait aucune trace : ni
+    relance commerciale possible, ni chiffre à afficher au gestionnaire.
+    """
+    creer_tenant_etoile(base_branchee)
+
+    choisir_premiere_option(repondre(demarrer_conversation("etoile"), MESSAGES_MARIAGE_300))
+
+    demandes = base_branchee.query(Demande).all()
+    devis = base_branchee.query(Devis).all()
+    assert len(demandes) == 1
+    assert demandes[0].etat == ETAT_COMPLETE
+    assert demandes[0].canal == "streamlit"
+    assert demandes[0].besoin["nombre_invites"] == 300
+    assert len(devis) == 1
+    assert devis[0].total == 3_300_000
+    assert devis[0].demande_id == demandes[0].id
+
+
+def test_interactions_apres_le_devis_nen_emettent_pas_un_second(base_branchee):
+    """Streamlit rejoue le script à chaque interaction : le devis affiché doit
+    rester le même document, pas une estimation réécrite à chaque clic (D11).
+    """
+    creer_tenant_etoile(base_branchee)
+    ecran = choisir_premiere_option(
+        repondre(demarrer_conversation("etoile"), MESSAGES_MARIAGE_300)
+    )
+
+    ecran = repondre(ecran, ["merci"])
+
+    assert TOTAL_MARIAGE_300 in texte_affiche(ecran)
+    assert len(base_branchee.query(Devis).all()) == 1
+
+
+def test_conversation_abandonnee_avant_le_devis_laisse_une_demande_relancable(base_branchee):
+    """Le commercial doit pouvoir rappeler un prospect qui n'est jamais allé au
+    bout : la demande existe dès le début, avec ce qu'on sait déjà de lui.
+    """
+    creer_tenant_etoile(base_branchee)
+
+    repondre(demarrer_conversation("etoile"), ["Je prépare un mariage"])
+
+    demandes = base_branchee.query(Demande).all()
+    assert len(demandes) == 1
+    assert demandes[0].etat == ETAT_EN_COURS
+    assert demandes[0].besoin["type_evenement"] == "mariage"
+    assert demandes[0].prospect_id is not None
+    assert base_branchee.query(Devis).all() == []
+
+
+def test_impasse_sans_aucune_ligne_nenregistre_pas_une_estimation_a_zero(base_branchee):
+    """Une impasse annoncée au prospect n'est pas un devis : l'enregistrer
+    ferait entrer un total de zéro franc dans le montant moyen du tableau
+    de bord.
+    """
+    tenant = creer_tenant_etoile(base_branchee)
+    base_branchee.query(Ressource).filter(Ressource.tenant_id == tenant.id).delete()
+    base_branchee.commit()
+
+    ecran = repondre(demarrer_conversation("etoile"), MESSAGES_MARIAGE_300)
+
+    assert "Aucune prestation disponible" in texte_affiche(ecran)
+    assert base_branchee.query(Devis).all() == []
+    assert base_branchee.query(Demande).one().etat == ETAT_EN_COURS
+
+
+def test_changement_dentreprise_ouvre_une_demande_dans_le_bon_espace(base_branchee):
+    """Le slug de l'URL peut changer sans que la session Streamlit change :
+    la demande suivante doit appartenir au nouveau tenant, jamais à l'ancien.
+    """
+    etoile = creer_tenant_etoile(base_branchee)
+    autre = Tenant(nom="Autre Entreprise", slug="autre", ville="Douala")
+    base_branchee.add(autre)
+    base_branchee.commit()
+    ecran = repondre(demarrer_conversation("etoile"), ["Je prépare un mariage"])
+
+    ecran.query_params["slug"] = "autre"
+    soumettre_formulaire_prospect(ecran.run(), nom="Bea Kum", telephone="+237699999999")
+
+    demandes = base_branchee.query(Demande).all()
+    assert len(demandes) == 2
+    assert {demande.tenant_id for demande in demandes} == {etoile.id, autre.id}
+    demande_etoile = next(d for d in demandes if d.tenant_id == etoile.id)
+    assert demande_etoile.besoin["type_evenement"] == "mariage"

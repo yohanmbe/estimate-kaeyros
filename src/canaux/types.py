@@ -1,5 +1,11 @@
-"""Résultat de la résolution du tenant à partir du slug de l'URL (voir tenant.py)"""
+"""Contextes que les canaux manipulent, tous détachés de la session SQLAlchemy.
+
+Un objet SQLAlchemy vivant ne survit pas à un rerun Streamlit : il lèverait
+DetachedInstanceError au tour suivant. Les canaux ne voient donc que ces
+dataclasses figées.
+"""
 from dataclasses import dataclass
+from datetime import datetime
 from typing import Literal
 
 
@@ -38,3 +44,21 @@ class ProspectContexte:
     telephone: str
     email: str | None
     consentement_contact: bool
+
+
+@dataclass(frozen=True)
+class DemandeOuverte:
+    """La demande ouverte pour la conversation en cours (voir canaux/demande.py)"""
+
+    id: str
+    etat: str
+
+
+@dataclass(frozen=True)
+class DevisEmis:
+    """Reçu d'un devis figé en base : ce qui a été écrit, jamais un recalcul (D11)"""
+
+    id: str
+    total: int
+    devise: str
+    date_emission: datetime

@@ -1,4 +1,8 @@
-"""Écran de connexion piloté sans navigateur (streamlit.testing), sans réseau ni Postgres"""
+"""Connexion au tableau de bord, pilotée sans navigateur et sans Postgres.
+
+L'écran de connexion n'est plus un fichier lançable : il est rendu par
+dashboard/app.py, seul point d'entrée, tant qu'aucun tenant_id n'est en session.
+"""
 from pathlib import Path
 
 from sqlalchemy.orm import Session
@@ -7,7 +11,7 @@ from streamlit.testing.v1 import AppTest
 from src.auth.hachage import hash_mot_de_passe
 from src.db.models import Tenant, Utilisateur
 
-CHEMIN_ECRAN = str(Path(__file__).resolve().parents[1] / "dashboard" / "connexion.py")
+CHEMIN_ECRAN = str(Path(__file__).resolve().parents[1] / "dashboard" / "app.py")
 
 MOT_DE_PASSE = "Etoile-Demo-2026"
 EMAIL = "gestionnaire@etoile-events.cm"
@@ -104,11 +108,15 @@ def test_compte_desactive_refuse_la_connexion(base_branchee):
 
 
 def test_deconnexion_efface_le_tenant_id_de_la_session(base_branchee):
+    """Le bouton est cherché par sa clé : une fois connecté, l'écran porte aussi
+    les boutons de navigation, dont l'ordre n'a pas à être connu du test.
+    """
     creer_gestionnaire(base_branchee)
     ecran = se_connecter(lancer_ecran(), EMAIL, MOT_DE_PASSE)
     assert "tenant_id" in ecran.session_state
 
-    ecran = ecran.button[0].click().run()
+    deconnexion = next(b for b in ecran.button if b.key == "deconnexion-bouton")
+    ecran = deconnexion.click().run()
 
     assert "tenant_id" not in ecran.session_state
     assert "utilisateur" not in ecran.session_state

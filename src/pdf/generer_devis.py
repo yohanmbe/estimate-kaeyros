@@ -12,9 +12,9 @@ from fpdf import FPDF
 from fpdf.enums import MethodReturnValue, XPos, YPos
 
 from src.canaux.types import ProspectContexte, TenantContexte
+from src.catalogue.vocabulaire import libelle_categorie
 from src.extraction.types import Besoin
 from src.moteur.types import LigneDevis, ResultatChiffrage
-from src.orchestration.questions import libelle_categorie
 from src.presentation.montant import formater_montant, formater_nombre
 
 MENTION_NON_CONTRACTUELLE = "Estimation indicative, non contractuelle"

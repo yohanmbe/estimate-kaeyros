@@ -285,4 +285,111 @@ touchant ce code, faisait planter data/seed/seed.py avec un KeyError dès
 le deuxième tenant (clés du dictionnaire de coordonnées désynchronisées
 des slugs réels), corrigé au passage.
 
+## D28 — La conversation écrit sa demande et son devis en base (2026-09-07)
+
+Jusqu'ici rien n'écrivait jamais les tables demande et devis : le besoin vivait
+dans st.session_state, le devis était recalculé à chaque rerun Streamlit et le
+PDF produit à la volée. src/canaux/demande.py comble ce trou, à côté de
+prospect.py : la demande s'ouvre dès que le prospect est connu (etat=en_cours),
+son besoin est réenregistré à chaque tour, et le devis fige ses lignes à
+l'émission avant de passer la demande à complete.
+Raison : sans écriture, une conversation ne laissait aucune trace. Ni relance
+commerciale possible alors que le cahier des charges pose que « sa demande
+arrive qualifiée chez le commercial », ni aucun chiffre à afficher au
+gestionnaire — trois des quatre indicateurs de D19 auraient affiché zéro à vie.
+Contrepartie : une écriture par tour de conversation, et un devis émis même
+quand le prospect ne télécharge pas son PDF.
+
+## D29 — La demande est ouverte tôt, pas au moment du chiffrage (2026-09-07)
+
+Elle est créée à l'enregistrement du prospect, avant la première question.
+Raison : une conversation abandonnée en route est justement celle que le
+commercial doit pouvoir rappeler. L'ouvrir au chiffrage n'aurait gardé que les
+demandes déjà abouties. repartir_par_tranche_invites prévoyait déjà le cas
+d'un besoin sans nombre_invites, qui n'entre alors dans aucune tranche.
+
+## D30 — Un besoin modifié après émission produit un second devis (2026-09-07)
+
+emettre_devis est idempotent sur le contenu : réémettre des lignes et un total
+identiques renvoie le devis déjà enregistré, ce qui protège des reruns
+Streamlit. Un besoin réellement modifié, en revanche, donne un nouveau devis ;
+la demande, elle, reste unique.
+Raison : les lignes émises ne se réécrivent pas (D11), et DONNEES.md définit le
+montant total comme la somme des totaux des devis émis. Redéfinir un indicateur
+pour dédoublonner ce cas de bord aurait coûté plus cher que de l'assumer.
+Un rechargement de page (F5) perd la session Streamlit, donc le prospect et son
+besoin : le formulaire réapparaît et une nouvelle demande est alors le
+comportement correct, pas un doublon.
+
+## D31 — Pas de date de validité sur un devis (2026-09-07)
+
+devis.date_validite devient nullable et n'est jamais renseignée.
+Raison : le produit s'arrête à l'estimation (D08). Une date de validité serait
+un engagement commercial qu'il ne peut pas tenir, et la remplir d'office
+(émission plus trente jours, par exemple) reviendrait à inventer une donnée
+que personne n'a décidée — aussi grave qu'un montant faux. La colonne reste
+déclarée pour le jour où une entreprise cliente voudra la porter.
+
+## D32 — Retirer une prestation la désactive, sans jamais la supprimer (2026-09-07)
+
+L'écran catalogue propose « Retirer » et non « Supprimer » : actif passe à
+false, la ligne demeure.
+Raison : Devis.lignes garde le ressource_id de chaque prestation facturée. Une
+suppression dure rendrait un devis émis inauditable, ce qui contredirait D11.
+Contrepartie : le catalogue du gestionnaire montre des prestations retirées que
+le prospect ne voit plus ; l'écran les distingue par une pastille.
+
+## D33 — Le cloisonnement est prouvé par les tests, pas seulement affirmé (2026-09-07)
+
+tests/test_cloisonnement_tenant.py superpose quatre filets : le patron jumeau
+(deux tenants, un seul interrogé) sur chaque fonction, un test d'accès direct
+par identifiant pour chaque fonction adressée ainsi, un écouteur SQLAlchemy qui
+lève dès qu'une requête touche une table métier sans tenant_id, et une garde de
+signature exigeant tenant_id partout où une session circule.
+Raison : « toute requête filtre sur tenant_id » est une règle qu'on ne peut pas
+vérifier à l'œil sur un dépôt qui grandit. L'écouteur a d'ailleurs trouvé trois
+requêtes non cloisonnées dès sa première exécution, dont un UPDATE de l'ORM qui
+ne portait que la clé primaire.
+Honnêteté du dispositif : l'écouteur ne voit que les requêtes qu'un test
+exécute, et la garde de signature ne détecte pas un paramètre reçu puis ignoré.
+L'oubli devient improbable, pas impossible.
+
+## D34 — Aucune mise en cache Streamlit dans le tableau de bord (2026-09-07)
+
+Pas de @st.cache_data ni @st.cache_resource dans dashboard/.
+Raison : un cache dont la clé oublierait le tenant_id servirait les chiffres
+d'une entreprise à une autre. C'est un argument de sécurité, pas de
+performance : les requêtes portent sur quelques dizaines de lignes.
+
+## D35 — Les demandes de démonstration vivent hors du provisionnement (2026-09-07)
+
+data/seed/demonstration.py, lancé à la main sur un slug, crée des prospects,
+des demandes et des devis de démonstration. provisionner_tenant (D25) n'y
+touche pas.
+Raison : provisionner sert aussi les vrais clients, et injecter des demandes
+fictives dans l'espace d'une entreprise réelle serait une pollution. Le script
+passe par le vrai chemin de production (enregistrement, ouverture, chiffrage
+sur le catalogue réel, émission) : un total de démonstration est donc un total
+que le moteur produirait, ce qui respecte D01 jusque dans la démo. Seules les
+dates sont reculées après coup, pour que le sélecteur de période ait de la
+matière.
+
+## D36 — Tranches d'invités recalées sur le marché du mariage (2026-09-07)
+
+Moins de 100, 100-250, 251-500, plus de 500, une borne haute n'appartenant
+qu'à une seule tranche.
+Raison : 300 invités sont courants à Yaoundé ; les tranches précédentes
+(1-50, 51-150, 151-300, 301+) écrasaient la majorité des mariages dans la
+dernière et n'apprenaient rien au gestionnaire.
+
+## D37 — L'état « abandonnée » reste déclaré et non écrit (2026-09-07)
+
+demande.etat ne prend que en_cours et complete dans les faits. Le filtre de
+statut du tableau de bord ne propose donc que ces deux-là.
+Raison : rien dans le produit ne sait distinguer une conversation abandonnée
+d'une conversation en pause — il faudrait une règle de délai que personne n'a
+décidée. Proposer un filtre qui ne peut jamais rien renvoyer vaudrait moins que
+pas de filtre du tout. La valeur reste dans le modèle de données pour le jour
+où cette règle sera posée.
+
 [Décisions suivantes à ajouter au fil du développement, avec la date.]

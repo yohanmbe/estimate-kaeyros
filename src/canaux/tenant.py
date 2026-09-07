@@ -35,6 +35,25 @@ def resoudre_chemin_logo(nom_fichier: str | None, dossier: Path = DOSSIER_LOGOS)
     return str(chemin) if chemin.is_file() else None
 
 
+def charger_tenant(session: Session, tenant_id: str) -> TenantContexte | None:
+    """Charge le tenant par son identifiant, pour le tableau de bord du gestionnaire.
+
+    Le prospect arrive par un slug d'URL (D16), le gestionnaire par sa
+    connexion : son tenant_id est déjà établi en session, il n'y a rien à
+    résoudre, seulement le nom, les coordonnées et le logo à afficher.
+    """
+    tenant = session.scalar(select(Tenant).where(Tenant.id == tenant_id))
+    if tenant is None:
+        return None
+    return TenantContexte(
+        id=tenant.id,
+        nom=tenant.nom,
+        slug=tenant.slug,
+        logo=resoudre_chemin_logo(tenant.logo),
+        coordonnees=tenant.coordonnees,
+    )
+
+
 def resoudre_tenant(session: Session, slug: str | None) -> ResolutionTenant:
     """Résout le tenant à partir d'un slug, sans jamais se rabattre sur un tenant par défaut.
 

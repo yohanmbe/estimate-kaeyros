@@ -8,8 +8,9 @@ Lancement : streamlit run src/canaux/streamlit_prospect.py
 puis ouvrir l'URL avec le slug du tenant, par exemple ?slug=etoile
 """
 import base64
+import json
 import sys
-from dataclasses import replace
+from dataclasses import asdict, replace
 from html import escape
 from pathlib import Path
 
@@ -20,6 +21,11 @@ from sqlalchemy.exc import SQLAlchemyError
 # projet soit déjà sur le sys.path (même besoin que data/seed/seed.py).
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
+from src.canaux.demande import (  # noqa: E402
+    actualiser_besoin,
+    emettre_devis,
+    ouvrir_demande,
+)
 from src.canaux.prospect import enregistrer_prospect  # noqa: E402
 from src.canaux.tenant import extraire_slug_depuis_url, resoudre_tenant  # noqa: E402
 from src.canaux.types import ProspectContexte, TenantContexte, TenantIndisponible  # noqa: E402
@@ -28,6 +34,7 @@ from src.catalogue.ressources import (  # noqa: E402
     charger_modele_evenement,
     charger_ressources_actives,
 )
+from src.catalogue.vocabulaire import libelle_categorie, libelle_unite  # noqa: E402
 from src.db.session import ouvrir_session  # noqa: E402
 from src.extraction.fabrique import (  # noqa: E402
     FOURNISSEUR_MOCK,
@@ -43,10 +50,7 @@ from src.orchestration.choix_ressources import (  # noqa: E402
 )
 from src.orchestration.machine import decider_prochaine_etape  # noqa: E402
 from src.orchestration.parcours import chiffrer_pour_besoin, resoudre_candidats  # noqa: E402
-from src.orchestration.questions import (  # noqa: E402
-    formuler_question_besoin,
-    libelle_categorie,
-)
+from src.orchestration.questions import formuler_question_besoin  # noqa: E402
 from src.orchestration.types import (  # noqa: E402
     Decision,
     PassageChiffrage,
@@ -58,6 +62,10 @@ from src.presentation.montant import formater_montant  # noqa: E402
 
 NOM_MODELE_EVENEMENT = "Mariage"
 
+# Canal enregistré sur chaque demande : le tableau de bord distingue ainsi
+# l'origine des demandes le jour où WhatsApp s'ajoutera (voir D06).
+CANAL = "streamlit"
+
 # Dépose un fichier logo.svg ou logo.png ici pour qu'il remplace la pastille
 # de repli en tête de la barre latérale, sans toucher au code (voir _logo_marque).
 DOSSIER_ASSETS = Path(__file__).parent / "assets"
@@ -65,14 +73,6 @@ FORMATS_LOGO_ACCEPTES = {".svg": "image/svg+xml", ".png": "image/png"}
 
 AGENT = "agent"
 PROSPECT = "prospect"
-
-LIBELLES_UNITES = {
-    "jour": "par jour",
-    "unite": "l'unité",
-    "personne": "par personne",
-    "forfait": "au forfait",
-    "heure": "par heure",
-}
 
 MESSAGES_ACCES_REFUSE = {
     "slug_absent": (
@@ -405,8 +405,19 @@ def _charger_catalogue_du_tenant(tenant: TenantContexte) -> None:
             session, tenant.id, NOM_MODELE_EVENEMENT
         )
     st.session_state.tenant = tenant
-    st.session_state.pop("besoin", None)
-    st.session_state.pop("prospect", None)
+    _oublier_conversation()
+
+
+def _oublier_conversation() -> None:
+    """Oublie tout ce qui appartenait à la conversation précédente.
+
+    Regroupé en un seul endroit parce que ces clés doivent partir ensemble :
+    en laisser une derrière au changement de tenant accrocherait le devis d'une
+    entreprise à la demande d'une autre, ce qui n'est pas un défaut d'affichage
+    mais une fuite entre locataires.
+    """
+    for cle in ("besoin", "prospect", "demande", "empreinte_devis", "resultat_devis"):
+        st.session_state.pop(cle, None)
 
 
 def _resoudre_prospect_ou_bloquer(tenant: TenantContexte) -> ProspectContexte:
@@ -475,12 +486,27 @@ def _initialiser_conversation_si_absente(tenant: TenantContexte) -> None:
 
 
 def _reinitialiser_conversation(tenant: TenantContexte, nom_scenario: str) -> None:
-    """Repart d'un besoin vide et d'un extracteur neuf.
+    """Repart d'un besoin vide, d'un extracteur neuf et d'une demande neuve.
 
     Le prospect est déjà résolu à cet appel (voir _resoudre_prospect_ou_bloquer,
     appelé avant dans main() et avant tout accès au panneau latéral).
+
+    Recommencer ouvre une nouvelle demande au lieu de vider celle en cours : le
+    besoin déjà décrit reste consultable par le commercial, et repartir de zéro
+    est bien une seconde demande du même prospect, pas l'effacement de la
+    première.
     """
     prospect = st.session_state.prospect
+    st.session_state.pop("empreinte_devis", None)
+    st.session_state.pop("resultat_devis", None)
+    with ouvrir_session() as session:
+        st.session_state.demande = ouvrir_demande(
+            session,
+            tenant.id,
+            canal=CANAL,
+            prospect_id=prospect.id,
+            besoin=asdict(Besoin()),
+        )
     st.session_state.besoin = Besoin()
     st.session_state.extracteur = _extracteur_de_la_conversation(nom_scenario)
     st.session_state.scenario_actif = nom_scenario
@@ -535,18 +561,37 @@ def _traiter_message_prospect(message: str) -> None:
     # du prospect. Sans cette ligne, le premier message envoyé après un choix
     # de ressource l'effacerait silencieusement, puisque le Besoin reconstruit
     # par l'extracteur repart toujours d'une liste vide.
-    st.session_state.besoin = replace(
-        besoin_extrait, ressources_choisies=besoin_avant.ressources_choisies
+    _remplacer_besoin(
+        replace(besoin_extrait, ressources_choisies=besoin_avant.ressources_choisies)
     )
     _repondre()
     espace_frappe.empty()
 
 
+def _remplacer_besoin(besoin: Besoin) -> None:
+    """Seul point de mutation du besoin : la session et la base avancent ensemble.
+
+    Tout ce qui fait évoluer le besoin passe par ici, qu'il s'agisse d'un message
+    du prospect, du choix d'une ressource ou du refus d'une catégorie. Une
+    mutation ajoutée plus tard ne pourra donc pas oublier d'enregistrer, et le
+    gestionnaire voit la conversation avancer au lieu de ne découvrir la demande
+    qu'une fois le devis émis.
+    """
+    st.session_state.besoin = besoin
+    with ouvrir_session() as session:
+        actualiser_besoin(
+            session,
+            st.session_state.tenant.id,
+            st.session_state.demande.id,
+            asdict(besoin),
+        )
+
+
 def _enregistrer_choix(ressource: RessourceCatalogue) -> None:
     """Ajoute la ressource choisie au besoin, puis fait répondre l'agent"""
     besoin = st.session_state.besoin
-    st.session_state.besoin = replace(
-        besoin, ressources_choisies=besoin.ressources_choisies + (ressource.id,)
+    _remplacer_besoin(
+        replace(besoin, ressources_choisies=besoin.ressources_choisies + (ressource.id,))
     )
     st.session_state.historique.append((PROSPECT, f"Je retiens : {ressource.nom}"))
     _repondre()
@@ -555,8 +600,8 @@ def _enregistrer_choix(ressource: RessourceCatalogue) -> None:
 def _exclure_categorie(categorie: str) -> None:
     """Retire une catégorie du besoin : le prospect n'en veut pas, le moteur ne la chiffrera pas"""
     besoin = st.session_state.besoin
-    st.session_state.besoin = replace(
-        besoin, prestations_exclues=besoin.prestations_exclues + (categorie,)
+    _remplacer_besoin(
+        replace(besoin, prestations_exclues=besoin.prestations_exclues + (categorie,))
     )
     st.session_state.historique.append(
         (PROSPECT, f"Je ne veux pas de {libelle_categorie(categorie)}")
@@ -572,8 +617,10 @@ def _terminer_les_choix() -> None:
     besoin = st.session_state.besoin
     candidats = resoudre_candidats(besoin, st.session_state.catalogue, st.session_state.modele)
     categories_en_attente = identifier_categories_restant_a_choisir(besoin, candidats)
-    st.session_state.besoin = replace(
-        besoin, prestations_exclues=besoin.prestations_exclues + tuple(categories_en_attente)
+    _remplacer_besoin(
+        replace(
+            besoin, prestations_exclues=besoin.prestations_exclues + tuple(categories_en_attente)
+        )
     )
     st.session_state.historique.append(
         (PROSPECT, "J'ai tout ce qu'il me faut, calculez mon estimation.")
@@ -662,12 +709,41 @@ def _afficher_suite(decision: Decision, tenant: TenantContexte) -> None:
     if isinstance(decision, QuestionChoixRessources):
         _afficher_options(decision)
     elif isinstance(decision, PassageChiffrage):
-        _afficher_devis(
-            chiffrer_pour_besoin(
-                st.session_state.besoin, st.session_state.catalogue, st.session_state.modele
-            ),
-            tenant,
-        )
+        _afficher_devis(_chiffrer_puis_figer(), tenant)
+
+
+def _chiffrer_puis_figer() -> ResultatChiffrage:
+    """Chiffre le besoin courant et fige le devis en base, une seule fois.
+
+    Streamlit rejoue tout le script à chaque interaction : chiffrer directement
+    dans le rendu, comme avant, recalculait le devis à chaque clic. L'empreinte
+    du besoin sert de mémoire pour que le prospect voie exactement les lignes
+    qui ont été enregistrées (D11), et pour ne pas réinterroger la base à
+    chaque rerun — emettre_devis reste idempotent de son côté.
+
+    Un chiffrage sans aucune ligne n'est pas enregistré : ce n'est pas une
+    estimation à zéro franc, c'est une impasse annoncée comme telle au prospect,
+    et l'écrire fausserait le montant moyen du tableau de bord.
+    """
+    besoin = st.session_state.besoin
+    empreinte = json.dumps(asdict(besoin), sort_keys=True)
+    if st.session_state.get("empreinte_devis") == empreinte:
+        return st.session_state.resultat_devis
+
+    resultat = chiffrer_pour_besoin(
+        besoin, st.session_state.catalogue, st.session_state.modele
+    )
+    if resultat.lignes:
+        with ouvrir_session() as session:
+            emettre_devis(
+                session,
+                st.session_state.tenant.id,
+                st.session_state.demande.id,
+                resultat,
+            )
+    st.session_state.empreinte_devis = empreinte
+    st.session_state.resultat_devis = resultat
+    return resultat
 
 
 def _afficher_options(decision: QuestionChoixRessources) -> None:
@@ -717,7 +793,7 @@ def _afficher_options(decision: QuestionChoixRessources) -> None:
 
 def _carte_option(ressource: RessourceCatalogue, quartier_souhaite: str | None) -> str:
     """Nom, prix et repères d'une ressource candidate"""
-    unite = LIBELLES_UNITES.get(ressource.unite_facturation, ressource.unite_facturation)
+    unite = libelle_unite(ressource.unite_facturation)
     return (
         f'<div class="option__nom">{escape(ressource.nom)}</div>'
         f'<div class="option__prix">{formater_montant(ressource.prix_unitaire)} '

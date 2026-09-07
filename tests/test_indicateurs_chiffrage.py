@@ -30,7 +30,6 @@ def creer_devis(session: Session, tenant: Tenant, demande: Demande) -> Devis:
         lignes=[],
         total=100_000,
         date_emission=demande.date_creation,
-        date_validite=demande.date_creation,
     )
     session.add(devis)
     session.commit()

@@ -63,47 +63,49 @@ def test_demandes_bornant_exactement_la_periode_sont_incluses(session):
 
 def test_repartition_par_tranche_invites_sur_quatre_demandes_et_une_sans_besoin(session):
     etoile = creer_tenant(session, "etoile")
-    creer_demande(session, etoile, datetime(2026, 1, 5), besoin={"nombre_invites": 30})
-    creer_demande(session, etoile, datetime(2026, 1, 6), besoin={"nombre_invites": 80})
-    creer_demande(session, etoile, datetime(2026, 1, 7), besoin={"nombre_invites": 200})
-    creer_demande(session, etoile, datetime(2026, 1, 8), besoin={"nombre_invites": 350})
+    creer_demande(session, etoile, datetime(2026, 1, 5), besoin={"nombre_invites": 60})
+    creer_demande(session, etoile, datetime(2026, 1, 6), besoin={"nombre_invites": 200})
+    creer_demande(session, etoile, datetime(2026, 1, 7), besoin={"nombre_invites": 350})
+    creer_demande(session, etoile, datetime(2026, 1, 8), besoin={"nombre_invites": 800})
     # Conversation interrompue avant que nombre_invites ne soit connu : dans
     # aucune tranche, mais toujours comptée par compter_demandes.
     creer_demande(session, etoile, datetime(2026, 1, 9), besoin={})
     # Hors période : ne doit compter dans aucune tranche.
-    creer_demande(session, etoile, datetime(2026, 2, 1), besoin={"nombre_invites": 30})
+    creer_demande(session, etoile, datetime(2026, 2, 1), besoin={"nombre_invites": 60})
 
     assert repartir_par_tranche_invites(session, etoile.id, PERIODE_JANVIER) == [
-        EffectifTranche(tranche="1-50", nombre_demandes=1),
-        EffectifTranche(tranche="51-150", nombre_demandes=1),
-        EffectifTranche(tranche="151-300", nombre_demandes=1),
-        EffectifTranche(tranche="301+", nombre_demandes=1),
+        EffectifTranche(tranche="< 100", nombre_demandes=1),
+        EffectifTranche(tranche="100-250", nombre_demandes=1),
+        EffectifTranche(tranche="251-500", nombre_demandes=1),
+        EffectifTranche(tranche="500+", nombre_demandes=1),
     ]
 
 
-def test_repartition_par_tranche_invites_bornes_incluses(session):
+def test_une_borne_de_tranche_ne_compte_que_dans_une_seule_tranche(session):
+    """250 invités appartiennent à « 100-250 », 500 à « 251-500 » : sans ce
+    test, un chevauchement de bornes ferait compter deux fois la même demande
+    ou l'oublierait des deux côtés.
+    """
     etoile = creer_tenant(session, "etoile")
-    creer_demande(session, etoile, datetime(2026, 1, 5), besoin={"nombre_invites": 50})
-    creer_demande(session, etoile, datetime(2026, 1, 6), besoin={"nombre_invites": 51})
-    creer_demande(session, etoile, datetime(2026, 1, 7), besoin={"nombre_invites": 300})
-    creer_demande(session, etoile, datetime(2026, 1, 8), besoin={"nombre_invites": 301})
+    for jour, invites in enumerate((99, 100, 250, 251, 500, 501), start=5):
+        creer_demande(session, etoile, datetime(2026, 1, jour), besoin={"nombre_invites": invites})
 
     assert repartir_par_tranche_invites(session, etoile.id, PERIODE_JANVIER) == [
-        EffectifTranche(tranche="1-50", nombre_demandes=1),
-        EffectifTranche(tranche="51-150", nombre_demandes=1),
-        EffectifTranche(tranche="151-300", nombre_demandes=1),
-        EffectifTranche(tranche="301+", nombre_demandes=1),
+        EffectifTranche(tranche="< 100", nombre_demandes=1),
+        EffectifTranche(tranche="100-250", nombre_demandes=2),
+        EffectifTranche(tranche="251-500", nombre_demandes=2),
+        EffectifTranche(tranche="500+", nombre_demandes=1),
     ]
 
 
 def test_repartition_ignore_les_demandes_dun_autre_tenant(session):
     etoile = creer_tenant(session, "etoile")
     fanta = creer_tenant(session, "fanta")
-    creer_demande(session, fanta, datetime(2026, 1, 5), besoin={"nombre_invites": 30})
+    creer_demande(session, fanta, datetime(2026, 1, 5), besoin={"nombre_invites": 60})
 
     assert repartir_par_tranche_invites(session, etoile.id, PERIODE_JANVIER) == [
-        EffectifTranche(tranche="1-50", nombre_demandes=0),
-        EffectifTranche(tranche="51-150", nombre_demandes=0),
-        EffectifTranche(tranche="151-300", nombre_demandes=0),
-        EffectifTranche(tranche="301+", nombre_demandes=0),
+        EffectifTranche(tranche="< 100", nombre_demandes=0),
+        EffectifTranche(tranche="100-250", nombre_demandes=0),
+        EffectifTranche(tranche="251-500", nombre_demandes=0),
+        EffectifTranche(tranche="500+", nombre_demandes=0),
     ]

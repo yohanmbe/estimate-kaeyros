@@ -34,7 +34,10 @@ def calculer_taux_demandes_chiffrees(session: Session, tenant_id: str, periode: 
             Demande.tenant_id == tenant_id,
             Demande.date_creation >= periode.debut,
             Demande.date_creation <= periode.fin,
-            exists().where(Devis.demande_id == Demande.id),
+            # Le devis est filtré sur le tenant lui aussi, pas seulement la
+            # demande à laquelle il se rattache : la clé étrangère ne garantit
+            # pas qu'une ligne liée appartient au même locataire.
+            exists().where(Devis.demande_id == Demande.id, Devis.tenant_id == tenant_id),
         )
     )
     return (nombre_chiffrees * 100 + nombre_demandes // 2) // nombre_demandes

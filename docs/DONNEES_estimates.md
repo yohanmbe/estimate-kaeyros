@@ -143,8 +143,16 @@ Structure du besoin :
 - id, tenant_id, demande_id
 - lignes : JSON figé. Chaque ligne contient designation, quantite,
   prix_unitaire, montant, ressource_id
-- total, devise (XAF), date_emission, date_validite
-- chemin_pdf
+- total, devise (XAF), date_emission
+- date_validite : nullable et jamais renseignée. Le produit s'arrête à
+  l'estimation (D08) : une date de validité serait un engagement commercial
+  qu'il ne peut pas tenir (voir D31). La colonne reste pour plus tard.
+- chemin_pdf : nullable et jamais renseigné en v1, le PDF étant produit à la
+  demande et téléchargé sans être stocké sur le serveur.
+
+Plusieurs devis peuvent se rattacher à une même demande : un besoin modifié
+après une première estimation en produit une seconde, sans que la première
+soit réécrite (voir D11 et D30). Le tableau de bord affiche la plus récente.
 
 ## Indicateurs du tableau de bord
 
@@ -153,9 +161,18 @@ devis du tenant connecté, sur une période choisie par le gestionnaire.
 
 Nombre de demandes reçues : compte des demandes du tenant sur la période.
 Montant total estimé : somme des totaux des devis émis sur la période.
-Montant moyen d'une estimation : le total divisé par le nombre de devis.
+Montant moyen d'une estimation : le total divisé par le nombre de devis,
+arrondi au franc le plus proche par arithmétique entière, sans flottant.
 Répartition des demandes par tranche d'invités : regroupement du champ
-nombre_invites du besoin en trois ou quatre tranches.
+nombre_invites du besoin en quatre tranches — moins de 100, 100-250, 251-500,
+plus de 500 (voir D36). Une demande dont le besoin ne porte pas encore
+nombre_invites n'entre dans aucune tranche.
+
+Deux indicateurs complémentaires s'y ajoutent, sur la table prospect et sur le
+croisement demande-devis : la part des prospects ayant accepté d'être
+recontactés, et la part des demandes ayant reçu une estimation. Ni l'un ni
+l'autre ne mesure une conversion commerciale au sens de D19 : le premier est un
+fait connu dès la création du prospect, le second un acte du produit lui-même.
 
 Aucun indicateur de conversion n'est affiché, le produit ne sachant pas
 ce qu'une demande devient après l'envoi de l'estimation (voir D08 et

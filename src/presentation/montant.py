@@ -12,6 +12,11 @@ ESPACE_INSECABLE = "\u00a0"
 
 DEVISE = "FCFA"
 
+# XAF est le code ISO du franc CFA, stocké dans devis.devise ; FCFA est le nom
+# que tout le monde emploie au Cameroun. Une même monnaie, deux écritures : les
+# écrans affichent la seconde sans jamais réécrire la donnée.
+CODES_DEVISES: dict[str, str] = {"XAF": DEVISE}
+
 
 def formater_montant(montant: int) -> str:
     """Montant entier suivi de sa devise, toujours explicite (voir CLAUDE.md)"""
@@ -21,3 +26,10 @@ def formater_montant(montant: int) -> str:
 def formater_nombre(valeur: int) -> str:
     """Entier avec ses milliers séparés, sans devise : un nombre d'invités par exemple"""
     return f"{valeur:,}".replace(",", ESPACE_INSECABLE)
+
+
+def libelle_devise(code: str | None) -> str:
+    """Nom affichable d'un code de devise, le code lui-même s'il est inconnu"""
+    if not code:
+        return DEVISE
+    return CODES_DEVISES.get(code, code)

@@ -46,14 +46,18 @@ modification manuelle du schéma.
 
 Les modules portent le nom de leur fonction, pas le nom du produit :
 
-- src/canaux/ — interfaces Streamlit et WhatsApp
+- src/canaux/ — interfaces Streamlit et WhatsApp, écriture du prospect et de la demande
 - src/extraction/ — interface LLM, prompts, mock
 - src/orchestration/ — machine à états, questions
 - src/moteur/ — calcul du devis, règles de quantité
-- src/catalogue/ — accès aux ressources
+- src/catalogue/ — accès aux ressources, vocabulaire, édition par le gestionnaire
+- src/consultation/ — lecture des demandes et de leurs devis pour le gestionnaire
+- src/indicateurs/ — KPI du tableau de bord et périodes d'analyse
+- src/presentation/ — mise en forme partagée des montants
+- src/auth/ — connexion du gestionnaire, hachage des mots de passe
 - src/pdf/ — génération du document
 - src/db/ — modèles SQLAlchemy, migrations
-- dashboard/ — interface gestionnaire Streamlit
+- dashboard/ — interface gestionnaire Streamlit (entrée : dashboard/app.py)
 - tests/
 - data/seed/ — jeu de démonstration
 
