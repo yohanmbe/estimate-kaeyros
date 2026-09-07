@@ -309,6 +309,9 @@ def test_prospect_peut_refuser_une_categorie_plutot_que_choisir(base_branchee):
 
     bouton_refus = next(bouton for bouton in ecran.button if bouton.key == "exclure-salle")
     ecran = bouton_refus.click().run()
+    # Mobilier et restauration n'ont qu'un candidat chacun, mais restent à
+    # trancher (rien n'entre au devis sans un choix explicite).
+    ecran = choisir_premiere_option(ecran)
 
     texte = texte_affiche(ecran)
     assert "Salle Bastos" not in texte
@@ -350,14 +353,27 @@ def creer_tenant_avec_deux_categories_a_choix_multiple(session: Session) -> Tena
     return tenant
 
 
-def test_bouton_jai_tout_ce_quil_me_faut_apparait_a_cote_du_refus(base_branchee):
+def test_bouton_jai_tout_ce_quil_me_faut_absent_avant_tout_choix(base_branchee):
+    """Sans ça, un prospect pourrait tout arrêter avant d'avoir rien choisi,
+    et l'estimation contiendrait quand même les catégories à candidat unique
+    (ex. la logistique) qu'il n'a jamais validées lui-même."""
     creer_tenant_avec_deux_categories_a_choix_multiple(base_branchee)
 
     ecran = repondre(demarrer_conversation("deux-choix"), MESSAGES_MARIAGE_300)
 
     labels = [bouton.label for bouton in ecran.button]
-    assert "J'ai tout ce qu'il me faut" in labels
     assert "Je ne veux pas de salle" in labels
+    assert "J'ai tout ce qu'il me faut" not in labels
+
+
+def test_bouton_jai_tout_ce_quil_me_faut_apparait_apres_un_premier_choix(base_branchee):
+    creer_tenant_avec_deux_categories_a_choix_multiple(base_branchee)
+    ecran = repondre(demarrer_conversation("deux-choix"), MESSAGES_MARIAGE_300)
+
+    ecran = [bouton for bouton in ecran.button if bouton.label == "Choisir"][0].click().run()
+
+    labels = [bouton.label for bouton in ecran.button]
+    assert "J'ai tout ce qu'il me faut" in labels
 
 
 def test_bouton_jai_tout_ce_quil_me_faut_arrete_le_parcours_de_choix(base_branchee):
@@ -384,6 +400,7 @@ def test_aucune_salle_assez_grande_est_annoncee_sans_bloquer_le_reste(base_branc
 
     ecran = ecran.sidebar.selectbox[0].select(SCENARIO_SANS_SALLE).run()
     ecran = repondre(ecran, ["Un mariage pour 900 invités", "Le 4 juillet 2026, sur deux jours"])
+    ecran = choisir_premiere_option(ecran)
 
     texte = texte_affiche(ecran)
     assert "Aucune salle du catalogue ne peut accueillir 900 invités." in texte

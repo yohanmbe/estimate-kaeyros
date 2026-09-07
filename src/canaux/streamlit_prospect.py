@@ -156,7 +156,13 @@ FEUILLE_DE_STYLE = """
     var(--fond);
   background-attachment:fixed;
 }
-[data-testid="stToolbar"], [data-testid="stDecoration"], footer{display:none;}
+/* stMainMenu et stAppDeployButton sont le menu et le bouton « Deploy », sans
+   intérêt pour un prospect. On ne masque pas stToolbar dans son ensemble :
+   il contient aussi le bouton qui redéploie la barre latérale une fois
+   repliée (stExpandSidebarButton) — le masquer le rendrait irrécupérable. */
+[data-testid="stMainMenu"], [data-testid="stAppDeployButton"],
+[data-testid="stDecoration"], footer{display:none;}
+[data-testid="stToolbar"]{background:transparent;box-shadow:none;}
 /* stHeader garde un fond opaque par défaut : sans cette ligne, une bande
    blanche reste visible au-dessus de l'en-tête malgré le dégradé de fond. */
 [data-testid="stHeader"]{background:transparent;}
@@ -300,7 +306,12 @@ FEUILLE_DE_STYLE = """
 
 section[data-testid="stSidebar"]{
   background:linear-gradient(180deg,var(--bleu-pale) 0%,var(--fond) 260px);
-  border-right:1px solid var(--trait);min-width:280px !important;}
+  border-right:1px solid var(--trait);}
+/* Le min-width ne s'applique que barre ouverte (aria-expanded="true") : sans
+   cette condition, il empêchait aussi le repli natif de Streamlit de rendre
+   sa place au contenu principal, qui restait décalé à gauche une fois la
+   barre repliée au lieu de se recentrer sur toute la largeur. */
+section[data-testid="stSidebar"][aria-expanded="true"]{min-width:280px !important;}
 [class*="st-key-panneau-"]{background:var(--surface);border:1px solid var(--trait);
   border-radius:16px;padding:1.05rem 1.1rem;box-shadow:0 2px 10px rgba(16,19,34,.05);
   margin-bottom:.75rem;}
@@ -677,7 +688,15 @@ def _afficher_options(decision: QuestionChoixRessources) -> None:
                 _enregistrer_choix(candidat)
                 st.rerun()
 
-    colonne_refus, colonne_fin = st.columns(2)
+    # « J'ai tout ce qu'il me faut » n'apparaît qu'après un premier choix
+    # effectif : sinon rien ne distingue une catégorie non choisie (ex. la
+    # salle) d'une catégorie sans choix à faire (ex. la logistique, à
+    # candidat unique) — l'estimation contiendrait des lignes que le
+    # prospect n'a jamais validées lui-même.
+    a_deja_choisi_une_ressource = bool(st.session_state.besoin.ressources_choisies)
+    colonne_refus, colonne_fin = (
+        st.columns(2) if a_deja_choisi_une_ressource else (st.container(), None)
+    )
     if colonne_refus.button(
         f"Je ne veux pas de {libelle_categorie(decision.categorie)}",
         key=f"exclure-{decision.categorie}",
@@ -685,7 +704,7 @@ def _afficher_options(decision: QuestionChoixRessources) -> None:
     ):
         _exclure_categorie(decision.categorie)
         st.rerun()
-    if colonne_fin.button(
+    if colonne_fin is not None and colonne_fin.button(
         "J'ai tout ce qu'il me faut",
         key="terminer-choix",
         type="primary",
