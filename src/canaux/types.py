@@ -11,6 +11,7 @@ class TenantContexte:
     nom: str
     slug: str
     logo: str | None = None
+    coordonnees: str | None = None
 
 
 @dataclass(frozen=True)

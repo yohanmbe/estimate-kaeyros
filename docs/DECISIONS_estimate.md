@@ -265,4 +265,24 @@ saisie dans le chat Streamlit et la persistance d'une ligne demande par
 conversation (qui n'existe pas encore, la conversation vivant entièrement
 en st.session_state) restent à faire séparément.
 
+## D27 — Le PDF porte les coordonnées du prospect et celles du tenant (2026-09-07)
+
+generer_pdf_devis prend désormais un ProspectContexte en plus du tenant et
+du besoin, et affiche un bloc « Demandé par » (nom, téléphone, email s'il
+est connu) au même format que le récapitulatif de l'événement, ainsi que
+Tenant.coordonnees dans l'en-tête, sous le nom de l'entreprise.
+Raison : cohérent avec D26 (le prospect a sa propre table pour que le
+commercial puisse le relancer) — un devis PDF sans les coordonnées de qui
+l'a demandé ne servirait à rien pour cette relance une fois sorti du chat.
+Tenant.coordonnees complète le PDF, dont l'en-tête porte déjà le nom du
+tenant (D14) : le prospect qui reçoit le document doit pouvoir joindre
+l'entreprise directement depuis le PDF.
+Tenant.coordonnees transite maintenant par ConfigurationTenant
+(src/catalogue/provisionnement.py) comme les autres champs du profil, au
+lieu d'être posé après coup sur l'objet Tenant en dehors du chemin de
+provisionnement partagé (voir D25) — ce contournement, découvert en
+touchant ce code, faisait planter data/seed/seed.py avec un KeyError dès
+le deuxième tenant (clés du dictionnaire de coordonnées désynchronisées
+des slugs réels), corrigé au passage.
+
 [Décisions suivantes à ajouter au fil du développement, avec la date.]

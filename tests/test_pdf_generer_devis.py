@@ -3,7 +3,7 @@ import base64
 import re
 import zlib
 
-from src.canaux.types import TenantContexte
+from src.canaux.types import ProspectContexte, TenantContexte
 from src.extraction.types import Besoin
 from src.moteur.types import CategorieNonSatisfaite, LigneDevis, ResultatChiffrage
 from src.pdf.generer_devis import generer_pdf_devis
@@ -15,6 +15,10 @@ PNG_1X1 = base64.b64decode(
 )
 
 TENANT = TenantContexte(id="t1", nom="Événements Étoile", slug="etoile", logo=None)
+PROSPECT = ProspectContexte(
+    id="p1", nom="Jean Mballa", telephone="690112233", email="jean@example.com",
+    consentement_contact=True,
+)
 BESOIN_MARIAGE_300 = Besoin(
     type_evenement="mariage",
     date_evenement="2026-12-12",
@@ -68,13 +72,13 @@ def _est_compresse(brut: bytes) -> bool:
 
 
 def test_pdf_commence_par_len_tete_dun_document_pdf_valide():
-    pdf_bytes = generer_pdf_devis(resultat_mariage_300(), TENANT, BESOIN_MARIAGE_300)
+    pdf_bytes = generer_pdf_devis(resultat_mariage_300(), TENANT, BESOIN_MARIAGE_300, PROSPECT)
 
     assert pdf_bytes.startswith(b"%PDF-")
 
 
 def test_entete_porte_le_nom_du_tenant_jamais_celui_du_produit():
-    pdf_bytes = generer_pdf_devis(resultat_mariage_300(), TENANT, BESOIN_MARIAGE_300)
+    pdf_bytes = generer_pdf_devis(resultat_mariage_300(), TENANT, BESOIN_MARIAGE_300, PROSPECT)
 
     texte = texte_du_pdf(pdf_bytes)
     assert "toile" in texte  # partie non accentuée de « Étoile », stable selon l'encodage
@@ -84,7 +88,7 @@ def test_entete_porte_le_nom_du_tenant_jamais_celui_du_produit():
 def test_lignes_et_total_du_resultat_apparaissent_sans_etre_recalcules():
     resultat = resultat_mariage_300()
 
-    texte = texte_du_pdf(generer_pdf_devis(resultat, TENANT, BESOIN_MARIAGE_300))
+    texte = texte_du_pdf(generer_pdf_devis(resultat, TENANT, BESOIN_MARIAGE_300, PROSPECT))
 
     assert "Menu Standard" in texte
     assert "2 850 000 FCFA" in texte
@@ -92,7 +96,7 @@ def test_lignes_et_total_du_resultat_apparaissent_sans_etre_recalcules():
 
 def test_mention_non_contractuelle_toujours_presente():
     texte = texte_du_pdf(
-        generer_pdf_devis(resultat_mariage_300(), TENANT, BESOIN_MARIAGE_300)
+        generer_pdf_devis(resultat_mariage_300(), TENANT, BESOIN_MARIAGE_300, PROSPECT)
     )
 
     assert "non contractuelle" in texte
@@ -106,13 +110,13 @@ def test_categorie_non_satisfaite_est_signalee_sans_etre_cachee():
         depasse_budget=None,
     )
 
-    texte = texte_du_pdf(generer_pdf_devis(resultat, TENANT, BESOIN_MARIAGE_300))
+    texte = texte_du_pdf(generer_pdf_devis(resultat, TENANT, BESOIN_MARIAGE_300, PROSPECT))
 
     assert "salle" in texte
 
 
 def test_tenant_sans_logo_ne_fait_pas_echouer_la_generation():
-    pdf_bytes = generer_pdf_devis(resultat_mariage_300(), TENANT, BESOIN_MARIAGE_300)
+    pdf_bytes = generer_pdf_devis(resultat_mariage_300(), TENANT, BESOIN_MARIAGE_300, PROSPECT)
 
     assert pdf_bytes.startswith(b"%PDF-")
 
@@ -124,7 +128,7 @@ def test_tenant_avec_logo_integre_limage_dans_len_tete(tmp_path):
         id="t1", nom="Événements Étoile", slug="etoile", logo=str(chemin_logo)
     )
 
-    pdf_bytes = generer_pdf_devis(resultat_mariage_300(), tenant_avec_logo, BESOIN_MARIAGE_300)
+    pdf_bytes = generer_pdf_devis(resultat_mariage_300(), tenant_avec_logo, BESOIN_MARIAGE_300, PROSPECT)
 
     assert pdf_bytes.startswith(b"%PDF-")
     assert b"/Image" in pdf_bytes
@@ -140,7 +144,7 @@ def test_type_ville_et_quartier_saffichent_avec_une_majuscule_meme_extraits_en_m
         duree_jours=1,
     )
 
-    texte = texte_du_pdf(generer_pdf_devis(resultat_mariage_300(), TENANT, besoin_en_minuscules))
+    texte = texte_du_pdf(generer_pdf_devis(resultat_mariage_300(), TENANT, besoin_en_minuscules, PROSPECT))
 
     assert "Mariage" in texte
     assert "astos" in texte  # partie non accentuée-sensible de « Bastos »
@@ -156,9 +160,52 @@ def test_nombre_dinvites_eleve_separe_les_milliers_pour_la_lisibilite():
         duree_jours=2,
     )
 
-    texte = texte_du_pdf(generer_pdf_devis(resultat_mariage_300(), TENANT, besoin_grand_evenement))
+    texte = texte_du_pdf(generer_pdf_devis(resultat_mariage_300(), TENANT, besoin_grand_evenement, PROSPECT))
 
     assert "1 500" in texte
+
+
+def test_coordonnees_du_prospect_apparaissent_pour_que_le_commercial_puisse_le_rappeler():
+    texte = texte_du_pdf(
+        generer_pdf_devis(resultat_mariage_300(), TENANT, BESOIN_MARIAGE_300, PROSPECT)
+    )
+
+    assert "Mballa" in texte
+    assert "690112233" in texte
+    assert "jean@example.com" in texte
+
+
+def test_prospect_sans_email_nest_pas_affiche_comme_un_champ_manquant():
+    prospect_sans_email = ProspectContexte(
+        id="p2", nom="Awa Ndoye", telephone="690112233", email=None,
+        consentement_contact=False,
+    )
+
+    texte = texte_du_pdf(
+        generer_pdf_devis(resultat_mariage_300(), TENANT, BESOIN_MARIAGE_300, prospect_sans_email)
+    )
+
+    assert "Ndoye" in texte
+    assert "à préciser" not in texte
+
+
+def test_coordonnees_du_tenant_apparaissent_dans_len_tete():
+    tenant_avec_coordonnees = TenantContexte(
+        id="t1", nom="Événements Étoile", slug="etoile", logo=None,
+        coordonnees="671234567, Bastos",
+    )
+
+    texte = texte_du_pdf(
+        generer_pdf_devis(resultat_mariage_300(), tenant_avec_coordonnees, BESOIN_MARIAGE_300, PROSPECT)
+    )
+
+    assert "671234567" in texte
+
+
+def test_tenant_sans_coordonnees_ne_fait_pas_echouer_la_generation():
+    pdf_bytes = generer_pdf_devis(resultat_mariage_300(), TENANT, BESOIN_MARIAGE_300, PROSPECT)
+
+    assert pdf_bytes.startswith(b"%PDF-")
 
 
 def test_nom_de_tenant_tres_long_napparait_pas_tronque():
@@ -172,7 +219,7 @@ def test_nom_de_tenant_tres_long_napparait_pas_tronque():
         logo=None,
     )
 
-    pdf_bytes = generer_pdf_devis(resultat_mariage_300(), tenant_nom_long, BESOIN_MARIAGE_300)
+    pdf_bytes = generer_pdf_devis(resultat_mariage_300(), tenant_nom_long, BESOIN_MARIAGE_300, PROSPECT)
 
     assert pdf_bytes.startswith(b"%PDF-")
     texte = texte_du_pdf(pdf_bytes)

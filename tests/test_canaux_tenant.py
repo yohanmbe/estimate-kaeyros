@@ -5,8 +5,16 @@ from src.canaux.types import TenantIndisponible, TenantResolu
 from src.db.models import Tenant
 
 
-def creer_tenant(session: Session, slug: str, actif: bool = True, logo: str | None = None) -> Tenant:
-    tenant = Tenant(nom=f"Entreprise {slug}", slug=slug, actif=actif, logo=logo)
+def creer_tenant(
+    session: Session,
+    slug: str,
+    actif: bool = True,
+    logo: str | None = None,
+    coordonnees: str | None = None,
+) -> Tenant:
+    tenant = Tenant(
+        nom=f"Entreprise {slug}", slug=slug, actif=actif, logo=logo, coordonnees=coordonnees
+    )
     session.add(tenant)
     session.commit()
     return tenant
@@ -78,6 +86,24 @@ def test_tenant_avec_un_nom_de_logo_sans_fichier_correspondant_est_resolu_sans_l
 
     assert isinstance(resultat, TenantResolu)
     assert resultat.tenant.logo is None
+
+
+def test_coordonnees_du_tenant_sont_transmises_au_contexte(session):
+    creer_tenant(session, slug="etoile", coordonnees="671234567, Bastos")
+
+    resultat = resoudre_tenant(session, slug="etoile")
+
+    assert isinstance(resultat, TenantResolu)
+    assert resultat.tenant.coordonnees == "671234567, Bastos"
+
+
+def test_tenant_sans_coordonnees_enregistrees_est_resolu_sans_coordonnees(session):
+    creer_tenant(session, slug="etoile", coordonnees=None)
+
+    resultat = resoudre_tenant(session, slug="etoile")
+
+    assert isinstance(resultat, TenantResolu)
+    assert resultat.tenant.coordonnees is None
 
 
 def test_nom_de_logo_absent_ne_cherche_aucun_fichier():

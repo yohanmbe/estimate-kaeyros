@@ -20,6 +20,7 @@ CONFIGURATION_CLIENT_TEST = ConfigurationTenant(
     slug="receptions-douala",
     ville="Douala",
     logo="receptions-douala.png",
+    coordonnees="699000000, Akwa",
     ressources=[
         RessourceAProvisionner(
             nom="Salle Akwa",
@@ -95,6 +96,7 @@ def test_relancer_avec_un_nouveau_nom_met_a_jour_le_tenant_existant(session: Ses
         slug=CONFIGURATION_CLIENT_TEST.slug,
         ville="Douala",
         logo="nouveau-logo.png",
+        coordonnees="699111111, Bonanjo",
         ressources=CONFIGURATION_CLIENT_TEST.ressources,
         modele_mariage=CONFIGURATION_CLIENT_TEST.modele_mariage,
         gestionnaire=CONFIGURATION_CLIENT_TEST.gestionnaire,
@@ -104,6 +106,7 @@ def test_relancer_avec_un_nouveau_nom_met_a_jour_le_tenant_existant(session: Ses
 
     assert tenant.nom == "Réceptions Douala Prestige"
     assert tenant.logo == "nouveau-logo.png"
+    assert tenant.coordonnees == "699111111, Bonanjo"
     assert session.scalar(select(Tenant).where(Tenant.slug == "receptions-douala")) is tenant
 
 
@@ -159,7 +162,7 @@ def test_configuration_valide_est_convertie_sans_erreur():
     assert configuration.ressources[0].attributs == {"quartier": "Akwa"}
 
 
-def test_configuration_sans_logo_ni_ville_est_acceptee():
+def test_configuration_sans_logo_ni_ville_ni_coordonnees_est_acceptee():
     configuration = configuration_depuis_dict(
         {
             "nom": "Réceptions Douala",
@@ -176,6 +179,7 @@ def test_configuration_sans_logo_ni_ville_est_acceptee():
 
     assert configuration.ville is None
     assert configuration.logo is None
+    assert configuration.coordonnees is None
 
 
 def test_configuration_sans_slug_est_signalee_par_une_erreur_claire():

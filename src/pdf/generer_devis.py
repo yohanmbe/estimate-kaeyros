@@ -11,7 +11,7 @@ from pathlib import Path
 from fpdf import FPDF
 from fpdf.enums import MethodReturnValue, XPos, YPos
 
-from src.canaux.types import TenantContexte
+from src.canaux.types import ProspectContexte, TenantContexte
 from src.extraction.types import Besoin
 from src.moteur.types import LigneDevis, ResultatChiffrage
 from src.orchestration.questions import libelle_categorie
@@ -41,13 +41,19 @@ COULEUR_TEXTE_ALERTE = (125, 60, 0)
 COULEUR_FOND_MENTION = (244, 245, 251)  # --fond
 
 
-def generer_pdf_devis(resultat: ResultatChiffrage, tenant: TenantContexte, besoin: Besoin) -> bytes:
+def generer_pdf_devis(
+    resultat: ResultatChiffrage,
+    tenant: TenantContexte,
+    besoin: Besoin,
+    prospect: ProspectContexte,
+) -> bytes:
     """Met en forme un devis déjà chiffré en PDF, prêt à être téléchargé"""
     pdf = FPDF(format="A4")
     pdf.set_auto_page_break(auto=True, margin=20)
     pdf.add_page()
 
     _dessiner_entete(pdf, tenant)
+    _dessiner_prospect(pdf, prospect)
     _dessiner_recapitulatif_besoin(pdf, besoin)
     _dessiner_tableau_lignes(pdf, resultat.lignes)
     _dessiner_total(pdf, resultat.total)
@@ -59,7 +65,7 @@ def generer_pdf_devis(resultat: ResultatChiffrage, tenant: TenantContexte, besoi
 
 
 def _dessiner_entete(pdf: FPDF, tenant: TenantContexte) -> None:
-    """En-tête au nom et au logo du tenant, jamais ceux du produit (D14)"""
+    """En-tête au nom, au logo et aux coordonnées du tenant, jamais ceux du produit (D14)"""
     x_texte = pdf.l_margin
     if tenant.logo and Path(tenant.logo).is_file():
         image = pdf.image(tenant.logo, x=pdf.l_margin, y=pdf.t_margin, h=HAUTEUR_LOGO_MM)
@@ -80,11 +86,14 @@ def _dessiner_entete(pdf: FPDF, tenant: TenantContexte) -> None:
     pdf.cell(
         0, 6,
         f"Estimation établie le {datetime.now().strftime('%d/%m/%Y à %H:%M')}",
-        new_x=XPos.LMARGIN, new_y=YPos.NEXT,
+        new_x=XPos.LEFT, new_y=YPos.NEXT,
     )
+    if tenant.coordonnees:
+        pdf.cell(0, 6, tenant.coordonnees, new_x=XPos.LEFT, new_y=YPos.NEXT)
     pdf.set_text_color(0, 0, 0)
 
     pdf.set_y(max(pdf.get_y(), pdf.t_margin + HAUTEUR_LOGO_MM))
+    pdf.set_x(pdf.l_margin)
     pdf.ln(3)
     _tracer_ligne_pleine(pdf, COULEUR_FILET)
     pdf.ln(5)
@@ -93,24 +102,42 @@ def _dessiner_entete(pdf: FPDF, tenant: TenantContexte) -> None:
 HAUTEUR_LIGNE_RECAP_MM = 7
 
 
-def _dessiner_recapitulatif_besoin(pdf: FPDF, besoin: Besoin) -> None:
-    """Rappelle l'événement décrit par le prospect, sous la même forme et les
-    mêmes couleurs que le récapitulatif de la barre latérale du chat (voir
-    streamlit_prospect.py) : une ligne par champ, séparées d'un filet pointillé.
+def _dessiner_prospect(pdf: FPDF, prospect: ProspectContexte) -> None:
+    """Qui demande cette estimation : sans ça, une demande qui n'aboutit pas
+    ne peut jamais être relancée par le commercial (voir D26).
     """
-    champs = (
+    champs = [("Nom", prospect.nom), ("Téléphone", prospect.telephone)]
+    if prospect.email:
+        champs.append(("Email", prospect.email))
+    _dessiner_section_cle_valeur(pdf, "DEMANDÉ PAR", champs)
+
+
+def _dessiner_recapitulatif_besoin(pdf: FPDF, besoin: Besoin) -> None:
+    """Rappelle l'événement décrit par le prospect, tel qu'extrait"""
+    champs = [
         ("Type", _mettre_en_forme(besoin.type_evenement)),
         ("Date", besoin.date_evenement),
         ("Ville", _mettre_en_forme(besoin.ville)),
         ("Quartier", _mettre_en_forme(besoin.quartier_souhaite)),
         ("Invités", _formater_nombre(besoin.nombre_invites)),
         ("Durée", f"{besoin.duree_jours} jour(s)" if besoin.duree_jours else None),
-    )
+    ]
+    _dessiner_section_cle_valeur(pdf, "VOTRE ÉVÉNEMENT", champs)
 
+
+def _dessiner_section_cle_valeur(
+    pdf: FPDF, titre: str, champs: list[tuple[str, str | None]]
+) -> None:
+    """Bloc de lignes clé/valeur teinté, séparées d'un filet pointillé — même
+    forme et mêmes couleurs que le récapitulatif de la barre latérale du chat
+    (voir streamlit_prospect.py). Une valeur absente se lit « à préciser » ;
+    pour un champ facultatif qui n'a simplement rien à afficher (l'email du
+    prospect, par exemple), ne pas inclure la ligne plutôt que de la passer.
+    """
     pdf.set_font("Helvetica", "B", 9)
     pdf.set_char_spacing(0.5)
     pdf.set_text_color(*COULEUR_TITRE_SECTION)
-    pdf.cell(0, 6, "VOTRE ÉVÉNEMENT", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+    pdf.cell(0, 6, titre, new_x=XPos.LMARGIN, new_y=YPos.NEXT)
     pdf.set_char_spacing(0)
 
     largeur_cle = pdf.epw * 0.35
@@ -142,7 +169,7 @@ def _mettre_en_forme(valeur: str | None) -> str | None:
 
 
 def _formater_nombre(valeur: int | None) -> str | None:
-    """Entier avec espace insécable comme séparateur de milliers"""
+    """Entier avec espace comme séparateur de milliers"""
     return f"{valeur:,}".replace(",", " ") if valeur else None
 
 
@@ -284,5 +311,5 @@ def _dessiner_encart(
 
 
 def _formater_montant(montant: int) -> str:
-    """Montant en FCFA, entier, devise explicite, espaces insécables entre les milliers"""
+    """Montant en FCFA, entier, devise explicite, espaces entre les milliers"""
     return f"{montant:,}".replace(",", " ") + " FCFA"

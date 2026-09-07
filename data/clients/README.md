@@ -14,6 +14,8 @@ un mot de passe en clair au premier lancement.
    - `logo` : nom de fichier attendu dans `data/logos/` (voir cette README
      et D24 dans DECISIONS.md) — omettre le champ si le client n'a pas
      encore fourni de logo, le PDF se rabat alors sur son nom seul
+   - `coordonnees` : téléphone et quartier du siège, affichés dans l'en-tête
+     du PDF (voir D14) — omettre le champ tant qu'ils ne sont pas connus
    - `ressources` : le catalogue du client (une entrée par prestation)
    - `modele_mariage` : les catégories attendues pour un mariage chez ce
      client, et comment leur quantité se calcule (voir DONNEES.md)

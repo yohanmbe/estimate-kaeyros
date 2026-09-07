@@ -58,5 +58,6 @@ def resoudre_tenant(session: Session, slug: str | None) -> ResolutionTenant:
             nom=tenant.nom,
             slug=tenant.slug,
             logo=resoudre_chemin_logo(tenant.logo),
+            coordonnees=tenant.coordonnees,
         )
     )

@@ -56,6 +56,7 @@ class ConfigurationTenant:
     slug: str
     ville: str | None
     logo: str | None
+    coordonnees: str | None
     ressources: list[RessourceAProvisionner]
     modele_mariage: list[LigneModeleAProvisionner]
     gestionnaire: GestionnaireAProvisionner
@@ -82,6 +83,7 @@ def configuration_depuis_dict(donnees: dict) -> ConfigurationTenant:
         slug=donnees["slug"],
         ville=donnees.get("ville"),
         logo=donnees.get("logo"),
+        coordonnees=donnees.get("coordonnees"),
         ressources=[
             RessourceAProvisionner(
                 nom=ressource["nom"],
@@ -139,6 +141,7 @@ def _get_or_create_tenant(session: Session, configuration: ConfigurationTenant) 
     tenant.nom = configuration.nom
     tenant.ville = configuration.ville
     tenant.logo = configuration.logo
+    tenant.coordonnees = configuration.coordonnees
     session.flush()
     return tenant
 

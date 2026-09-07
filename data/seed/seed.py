@@ -150,6 +150,7 @@ CONFIGURATION_ETOILE = ConfigurationTenant(
     slug="etoile",
     ville="Yaoundé",
     logo="etoile.png",
+    coordonnees="671234567, Bastos",
     ressources=RESSOURCES_ETOILE,
     modele_mariage=LIGNES_PAR_DEFAUT_MARIAGE,
     gestionnaire=GestionnaireAProvisionner(
@@ -265,6 +266,7 @@ CONFIGURATION_PRESTIGE = ConfigurationTenant(
     slug="prestige",
     ville="Yaoundé",
     logo="prestige.png",
+    coordonnees="677654321, Golf",
     ressources=RESSOURCES_PRESTIGE,
     modele_mariage=LIGNES_PAR_DEFAUT_MARIAGE,
     gestionnaire=GestionnaireAProvisionner(
@@ -379,6 +381,7 @@ CONFIGURATION_MALIN = ConfigurationTenant(
     slug="malin",
     ville="Yaoundé",
     logo="malin.png",
+    coordonnees="650123456, Nkoabang",
     ressources=RESSOURCES_MALIN,
     modele_mariage=LIGNES_PAR_DEFAUT_MARIAGE,
     gestionnaire=GestionnaireAProvisionner(
@@ -493,6 +496,7 @@ CONFIGURATION_NLONGKAK = ConfigurationTenant(
     slug="nlongkak",
     ville="Yaoundé",
     logo="receptions.png",
+    coordonnees="693456789, Nlongkak",
     ressources=RESSOURCES_NLONGKAK,
     modele_mariage=LIGNES_PAR_DEFAUT_MARIAGE,
     gestionnaire=GestionnaireAProvisionner(
@@ -509,15 +513,6 @@ CONFIGURATIONS = [
     CONFIGURATION_NLONGKAK,
 ]
 
-# Coordonnées (numéro + quartier) ajoutées après provisionnement pour plus
-# de réalisme. Chaque tenant a un siège social identifié.
-COORDONNEES_PAR_SLUG = {
-    "etoile": "671234567, Bastos",
-    "yaounde-prestige": "677654321, Golf",
-    "mariage-malin": "650123456, Nkoabang",
-    "nlongkak-receptions": "693456789, Nlongkak",
-}
-
 
 def main() -> None:
     load_dotenv()
@@ -531,7 +526,6 @@ def main() -> None:
     with SessionLocal() as session:
         for configuration in CONFIGURATIONS:
             tenant, gestionnaire_cree = provisionner_tenant(session, configuration)
-            tenant.coordonnees = COORDONNEES_PAR_SLUG[configuration.slug]
             session.commit()
 
             print(
