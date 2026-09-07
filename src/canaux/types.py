@@ -26,3 +26,14 @@ class TenantIndisponible:
 
 
 ResolutionTenant = TenantResolu | TenantIndisponible
+
+
+@dataclass(frozen=True)
+class ProspectContexte:
+    """Sous-ensemble du prospect utile au canal, détaché de la session SQLAlchemy"""
+
+    id: str
+    nom: str
+    telephone: str
+    email: str | None
+    consentement_contact: bool

@@ -5,7 +5,7 @@ from pathlib import Path
 from sqlalchemy.orm import Session
 from streamlit.testing.v1 import AppTest
 
-from src.db.models import ModeleEvenement, Ressource, Tenant
+from src.db.models import ModeleEvenement, Prospect, Ressource, Tenant
 
 CHEMIN_ECRAN = str(
     Path(__file__).resolve().parents[1] / "src" / "canaux" / "streamlit_prospect.py"
@@ -69,6 +69,23 @@ def lancer_ecran(slug: str | None = None) -> AppTest:
     return ecran.run()
 
 
+def soumettre_formulaire_prospect(
+    ecran: AppTest, nom: str = "Awa Ngo", telephone: str = "+237690000000"
+) -> AppTest:
+    """Remplit et valide le formulaire d'identification affiché avant le chat"""
+    champ_nom = next(c for c in ecran.text_input if c.key == "prospect-nom")
+    champ_telephone = next(c for c in ecran.text_input if c.key == "prospect-telephone")
+    champ_nom.set_value(nom)
+    champ_telephone.set_value(telephone)
+    bouton_soumettre = next(b for b in ecran.button if b.key == "prospect-soumettre")
+    return bouton_soumettre.click().run()
+
+
+def demarrer_conversation(slug: str) -> AppTest:
+    """Charge l'écran et franchit le formulaire d'identification, jusqu'au chat"""
+    return soumettre_formulaire_prospect(lancer_ecran(slug))
+
+
 def texte_affiche(ecran: AppTest) -> str:
     """Tout le texte rendu par l'écran, pour y chercher un montant ou un message.
 
@@ -120,16 +137,63 @@ def test_tenant_desactive_naffiche_aucun_chat(base_branchee):
 def test_ecran_accueille_le_prospect_au_nom_de_lentreprise(base_branchee):
     creer_tenant_etoile(base_branchee)
 
-    ecran = lancer_ecran("etoile")
+    ecran = demarrer_conversation("etoile")
 
     assert "Événements Étoile" in texte_affiche(ecran)
     assert ecran.chat_input != []
 
 
+def test_formulaire_prospect_bloque_le_chat_tant_quil_nest_pas_soumis(base_branchee):
+    creer_tenant_etoile(base_branchee)
+
+    ecran = lancer_ecran("etoile")
+
+    assert "Événements Étoile" in texte_affiche(ecran)
+    assert ecran.chat_input == []
+
+
+def test_formulaire_prospect_sans_nom_ni_telephone_affiche_une_erreur(base_branchee):
+    creer_tenant_etoile(base_branchee)
+    ecran = lancer_ecran("etoile")
+
+    bouton_soumettre = next(b for b in ecran.button if b.key == "prospect-soumettre")
+    ecran = bouton_soumettre.click().run()
+
+    assert "Merci d'indiquer votre nom et votre téléphone" in ecran.error[0].value
+    assert ecran.chat_input == []
+
+
+def test_formulaire_prospect_valide_cree_une_ligne_prospect_en_base(base_branchee):
+    creer_tenant_etoile(base_branchee)
+
+    demarrer_conversation("etoile")
+
+    prospects = base_branchee.query(Prospect).all()
+    assert len(prospects) == 1
+    assert prospects[0].nom == "Awa Ngo"
+    assert prospects[0].telephone == "+237690000000"
+    assert prospects[0].consentement_contact is True
+
+
+def test_changement_de_tenant_redemande_le_formulaire_prospect(base_branchee):
+    creer_tenant_etoile(base_branchee)
+    base_branchee.add(Tenant(nom="Autre Entreprise", slug="autre", ville="Douala"))
+    base_branchee.commit()
+
+    ecran = demarrer_conversation("etoile")
+    assert ecran.chat_input != []
+
+    ecran.query_params["slug"] = "autre"
+    ecran = ecran.run()
+
+    assert "Autre Entreprise" in texte_affiche(ecran)
+    assert ecran.chat_input == []
+
+
 def test_besoin_incomplet_fait_poser_une_question_avant_tout_montant(base_branchee):
     creer_tenant_etoile(base_branchee)
 
-    ecran = repondre(lancer_ecran("etoile"), ["Je prépare un mariage"])
+    ecran = repondre(demarrer_conversation("etoile"), ["Je prépare un mariage"])
 
     texte = texte_affiche(ecran)
     assert "Il me manque" in texte
@@ -139,7 +203,7 @@ def test_besoin_incomplet_fait_poser_une_question_avant_tout_montant(base_branch
 def test_salle_hors_du_quartier_souhaite_reste_proposee(base_branchee):
     creer_tenant_etoile(base_branchee)
 
-    ecran = repondre(lancer_ecran("etoile"), MESSAGES_MARIAGE_300)
+    ecran = repondre(demarrer_conversation("etoile"), MESSAGES_MARIAGE_300)
 
     texte = texte_affiche(ecran)
     assert "Salle Bastos" in texte
@@ -149,7 +213,7 @@ def test_salle_hors_du_quartier_souhaite_reste_proposee(base_branchee):
 def test_mariage_300_invites_bastos_affiche_le_total_de_lestimation(base_branchee):
     creer_tenant_etoile(base_branchee)
 
-    ecran = choisir_premiere_option(repondre(lancer_ecran("etoile"), MESSAGES_MARIAGE_300))
+    ecran = choisir_premiere_option(repondre(demarrer_conversation("etoile"), MESSAGES_MARIAGE_300))
 
     texte = texte_affiche(ecran)
     assert TOTAL_MARIAGE_300 in texte
@@ -159,7 +223,7 @@ def test_mariage_300_invites_bastos_affiche_le_total_de_lestimation(base_branche
 def test_estimation_affichee_propose_le_telechargement_du_pdf(base_branchee):
     creer_tenant_etoile(base_branchee)
 
-    ecran = choisir_premiere_option(repondre(lancer_ecran("etoile"), MESSAGES_MARIAGE_300))
+    ecran = choisir_premiere_option(repondre(demarrer_conversation("etoile"), MESSAGES_MARIAGE_300))
 
     boutons_telechargement = ecran.download_button
     assert len(boutons_telechargement) == 1
@@ -170,7 +234,7 @@ def test_message_envoye_apres_avoir_choisi_une_salle_ne_perd_pas_ce_choix(base_b
     """Le schéma JSON de l'extracteur n'inclut pas ressources_choisies : un
     message envoyé après un choix ne doit pas faire redemander ce choix."""
     creer_tenant_etoile(base_branchee)
-    ecran = choisir_premiere_option(repondre(lancer_ecran("etoile"), MESSAGES_MARIAGE_300))
+    ecran = choisir_premiere_option(repondre(demarrer_conversation("etoile"), MESSAGES_MARIAGE_300))
     assert TOTAL_MARIAGE_300 in texte_affiche(ecran)
 
     ecran = repondre(ecran, ["merci"])
@@ -183,7 +247,7 @@ def test_message_envoye_apres_avoir_choisi_une_salle_ne_perd_pas_ce_choix(base_b
 def test_recapitulatif_besoin_reflete_les_informations_connues(base_branchee):
     creer_tenant_etoile(base_branchee)
 
-    ecran = repondre(lancer_ecran("etoile"), MESSAGES_MARIAGE_300)
+    ecran = repondre(demarrer_conversation("etoile"), MESSAGES_MARIAGE_300)
 
     texte = texte_affiche(ecran)
     assert "Votre événement" in texte
@@ -198,7 +262,7 @@ def test_fournisseur_reel_affiche_le_recapitulatif_sans_nommer_le_fournisseur(
     monkeypatch.setenv("LLM_PROVIDER", "groq")
     monkeypatch.setenv("GROQ_API_KEY", "cle-de-test")
 
-    texte = texte_affiche(lancer_ecran("etoile"))
+    texte = texte_affiche(demarrer_conversation("etoile"))
 
     assert "Votre événement" in texte
     assert "groq" not in texte.lower()
@@ -207,7 +271,7 @@ def test_fournisseur_reel_affiche_le_recapitulatif_sans_nommer_le_fournisseur(
 
 def test_prospect_peut_refuser_une_categorie_plutot_que_choisir(base_branchee):
     creer_tenant_etoile(base_branchee)
-    ecran = repondre(lancer_ecran("etoile"), MESSAGES_MARIAGE_300)
+    ecran = repondre(demarrer_conversation("etoile"), MESSAGES_MARIAGE_300)
 
     bouton_refus = next(bouton for bouton in ecran.button if bouton.key == "exclure-salle")
     ecran = bouton_refus.click().run()
@@ -255,7 +319,7 @@ def creer_tenant_avec_deux_categories_a_choix_multiple(session: Session) -> Tena
 def test_bouton_jai_tout_ce_quil_me_faut_apparait_a_cote_du_refus(base_branchee):
     creer_tenant_avec_deux_categories_a_choix_multiple(base_branchee)
 
-    ecran = repondre(lancer_ecran("deux-choix"), MESSAGES_MARIAGE_300)
+    ecran = repondre(demarrer_conversation("deux-choix"), MESSAGES_MARIAGE_300)
 
     labels = [bouton.label for bouton in ecran.button]
     assert "J'ai tout ce qu'il me faut" in labels
@@ -264,7 +328,7 @@ def test_bouton_jai_tout_ce_quil_me_faut_apparait_a_cote_du_refus(base_branchee)
 
 def test_bouton_jai_tout_ce_quil_me_faut_arrete_le_parcours_de_choix(base_branchee):
     creer_tenant_avec_deux_categories_a_choix_multiple(base_branchee)
-    ecran = repondre(lancer_ecran("deux-choix"), MESSAGES_MARIAGE_300)
+    ecran = repondre(demarrer_conversation("deux-choix"), MESSAGES_MARIAGE_300)
 
     # Choisit la première salle, ce qui ferait normalement passer à la
     # question sur la restauration.
@@ -282,7 +346,7 @@ def test_bouton_jai_tout_ce_quil_me_faut_arrete_le_parcours_de_choix(base_branch
 
 def test_aucune_salle_assez_grande_est_annoncee_sans_bloquer_le_reste(base_branchee):
     creer_tenant_etoile(base_branchee)
-    ecran = lancer_ecran("etoile")
+    ecran = demarrer_conversation("etoile")
 
     ecran = ecran.sidebar.selectbox[0].select(SCENARIO_SANS_SALLE).run()
     ecran = repondre(ecran, ["Un mariage pour 900 invités", "Le 4 juillet 2026, sur deux jours"])

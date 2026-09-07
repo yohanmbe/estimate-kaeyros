@@ -20,8 +20,9 @@ from sqlalchemy.exc import SQLAlchemyError
 # projet soit déjà sur le sys.path (même besoin que data/seed/seed.py).
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
+from src.canaux.prospect import enregistrer_prospect  # noqa: E402
 from src.canaux.tenant import extraire_slug_depuis_url, resoudre_tenant  # noqa: E402
-from src.canaux.types import TenantContexte, TenantIndisponible  # noqa: E402
+from src.canaux.types import ProspectContexte, TenantContexte, TenantIndisponible  # noqa: E402
 from src.catalogue.ressources import (  # noqa: E402
     charger_modele_evenement,
     charger_ressources_actives,
@@ -327,6 +328,7 @@ def main() -> None:
     try:
         tenant = _resoudre_tenant_ou_bloquer()
         _charger_catalogue_du_tenant(tenant)
+        _resoudre_prospect_ou_bloquer(tenant)
     except SQLAlchemyError:
         _afficher_arret(
             "Service momentanément indisponible",
@@ -391,6 +393,58 @@ def _charger_catalogue_du_tenant(tenant: TenantContexte) -> None:
         )
     st.session_state.tenant = tenant
     st.session_state.pop("besoin", None)
+    st.session_state.pop("prospect", None)
+
+
+def _resoudre_prospect_ou_bloquer(tenant: TenantContexte) -> ProspectContexte:
+    """Bloque l'écran tant que le prospect n'a pas fourni ses coordonnées (voir D26).
+
+    Un Prospect est rattaché à un tenant_id : rien à réutiliser d'une session
+    précédente pour une autre entreprise (voir le reset dans
+    _charger_catalogue_du_tenant lors d'un changement de tenant).
+    """
+    if "prospect" in st.session_state:
+        return st.session_state.prospect
+    _afficher_formulaire_prospect(tenant)
+    st.stop()
+
+
+def _afficher_formulaire_prospect(tenant: TenantContexte) -> None:
+    """Recueille nom, téléphone, email et consentement avant d'ouvrir le chat.
+
+    Données structurées et fiables par nature : rien à interpréter par un
+    LLM ici, contrairement au besoin de l'événement (voir D01, D04).
+    """
+    st.markdown(f"### Estimation pour {tenant.nom}")
+    st.write("Avant de commencer, dites-nous qui vous êtes pour pouvoir vous recontacter.")
+
+    with st.form("formulaire_prospect"):
+        nom = st.text_input("Votre nom", key="prospect-nom")
+        telephone = st.text_input("Votre téléphone", key="prospect-telephone")
+        email = st.text_input("Votre email (optionnel)", key="prospect-email")
+        consentement = st.checkbox(
+            "J'accepte d'être recontacté·e au sujet de cette demande",
+            value=True,
+            key="prospect-consentement",
+        )
+        soumis = st.form_submit_button("Commencer mon estimation", key="prospect-soumettre")
+
+    if not soumis:
+        return
+    if not nom.strip() or not telephone.strip():
+        st.error("Merci d'indiquer votre nom et votre téléphone.")
+        return
+
+    with ouvrir_session() as session:
+        st.session_state.prospect = enregistrer_prospect(
+            session,
+            tenant_id=tenant.id,
+            nom=nom.strip(),
+            telephone=telephone.strip(),
+            email=email.strip() or None,
+            consentement_contact=consentement,
+        )
+    st.rerun()
 
 
 def _initialiser_conversation_si_absente(tenant: TenantContexte) -> None:
