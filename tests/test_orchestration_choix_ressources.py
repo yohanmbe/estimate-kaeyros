@@ -17,10 +17,19 @@ def ressource(id_: str, categorie: str) -> RessourceCatalogue:
     )
 
 
-def test_categorie_a_un_seul_candidat_n_est_jamais_a_choisir():
-    candidats = {"decoration": [ressource("deco-1", "decoration")]}
+def test_categorie_a_un_seul_candidat_est_aussi_a_choisir():
+    candidats_deco = [ressource("deco-1", "decoration")]
 
-    resultat = identifier_prochaine_categorie_a_choisir(Besoin(), candidats)
+    resultat = identifier_prochaine_categorie_a_choisir(Besoin(), {"decoration": candidats_deco})
+
+    assert resultat == ("decoration", candidats_deco)
+
+
+def test_categorie_a_un_seul_candidat_deja_choisi_nest_plus_a_choisir():
+    candidats = {"decoration": [ressource("deco-1", "decoration")]}
+    besoin = Besoin(ressources_choisies=("deco-1",))
+
+    resultat = identifier_prochaine_categorie_a_choisir(besoin, candidats)
 
     assert resultat is None
 
@@ -84,7 +93,8 @@ def test_aucune_categorie_ne_correspond_quand_toutes_sont_resolues():
 
 def test_categories_restant_a_choisir_renvoie_tout_pas_seulement_la_premiere():
     """Sert au bouton « j'ai tout ce qu'il me faut » : il faut pouvoir exclure
-    toutes les catégories en attente d'un coup, pas une par une."""
+    toutes les catégories en attente d'un coup, pas une par une — y compris
+    celles à candidat unique, qui n'ont sinon jamais été tranchées."""
     candidats = {
         "salle": [ressource("salle-1", "salle"), ressource("salle-2", "salle")],
         "mobilier": [ressource("chaise-1", "mobilier")],
@@ -94,10 +104,10 @@ def test_categories_restant_a_choisir_renvoie_tout_pas_seulement_la_premiere():
 
     resultat = identifier_categories_restant_a_choisir(Besoin(), candidats)
 
-    assert resultat == ["salle", "restauration", "decoration"]
+    assert resultat == ["salle", "mobilier", "restauration", "decoration"]
 
 
-def test_categories_deja_choisies_ou_a_candidat_unique_absentes_du_reste_a_choisir():
+def test_categorie_deja_choisie_est_seule_absente_du_reste_a_choisir():
     candidats = {
         "salle": [ressource("salle-1", "salle"), ressource("salle-2", "salle")],
         "mobilier": [ressource("chaise-1", "mobilier")],
@@ -107,7 +117,7 @@ def test_categories_deja_choisies_ou_a_candidat_unique_absentes_du_reste_a_chois
 
     resultat = identifier_categories_restant_a_choisir(besoin, candidats)
 
-    assert resultat == ["salle"]
+    assert resultat == ["salle", "mobilier"]
 
 
 def test_aucune_categorie_restante_quand_tout_est_decide():

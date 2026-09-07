@@ -93,14 +93,29 @@ def test_mariage_300_invites_bastos_propose_la_salle_du_quartier_en_premier():
     assert [candidat.nom for candidat in decision.candidats] == ["Salle Bastos", "Salle Mvan"]
 
 
-def test_salle_choisie_fait_passer_la_conversation_au_chiffrage():
+def test_salle_seule_choisie_ne_suffit_pas_encore_au_chiffrage():
+    """Mobilier et restauration n'ont qu'un candidat chacun, mais restent à
+    trancher : rien n'entre au devis sans un choix explicite du prospect."""
     besoin = replace(BESOIN_MARIAGE_300, ressources_choisies=("salle-bastos",))
+
+    decision = decider(besoin)
+
+    assert isinstance(decision, QuestionChoixRessources)
+    assert decision.categorie == "mobilier"
+
+
+def test_toutes_les_categories_choisies_font_passer_la_conversation_au_chiffrage():
+    besoin = replace(
+        BESOIN_MARIAGE_300, ressources_choisies=("salle-bastos", "chaise", "menu")
+    )
 
     assert isinstance(decider(besoin), PassageChiffrage)
 
 
 def test_mariage_300_invites_bastos_calcule_total_correct():
-    besoin = replace(BESOIN_MARIAGE_300, ressources_choisies=("salle-bastos",))
+    besoin = replace(
+        BESOIN_MARIAGE_300, ressources_choisies=("salle-bastos", "chaise", "menu")
+    )
 
     resultat = chiffrer_pour_besoin(besoin, CATALOGUE, MODELE_MARIAGE)
 
@@ -113,7 +128,12 @@ def test_mariage_300_invites_bastos_calcule_total_correct():
 
 
 def test_mariage_900_invites_signale_la_salle_comme_non_satisfaite():
-    besoin = replace(BESOIN_MARIAGE_300, nombre_invites=900, duree_jours=2)
+    besoin = replace(
+        BESOIN_MARIAGE_300,
+        nombre_invites=900,
+        duree_jours=2,
+        ressources_choisies=("chaise", "menu"),
+    )
 
     resultat = chiffrer_pour_besoin(besoin, CATALOGUE, MODELE_MARIAGE)
 
@@ -124,7 +144,9 @@ def test_mariage_900_invites_signale_la_salle_comme_non_satisfaite():
 
 def test_budget_declare_depasse_est_signale_sans_modifier_le_total():
     besoin = replace(
-        BESOIN_MARIAGE_300, ressources_choisies=("salle-bastos",), budget_declare=2_000_000
+        BESOIN_MARIAGE_300,
+        ressources_choisies=("salle-bastos", "chaise", "menu"),
+        budget_declare=2_000_000,
     )
 
     resultat = chiffrer_pour_besoin(besoin, CATALOGUE, MODELE_MARIAGE)

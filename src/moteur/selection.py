@@ -88,8 +88,10 @@ def resoudre_ressources_choisies(
 ) -> dict[str, RessourceCatalogue]:
     """Associe à chaque catégorie la ressource retenue pour le chiffrage.
 
-    Une catégorie à candidat unique est retenue d'office : il n'y a rien à
-    décider. Une catégorie sans candidat reste absente du résultat, le moteur
+    Une catégorie n'est retenue que si le prospect a explicitement choisi
+    l'un de ses candidats, même à candidat unique : rien n'est présumé pour
+    lui (voir CLAUDE.md, le devis ne contient que ce que le prospect a
+    choisi). Une catégorie non choisie reste absente du résultat, le moteur
     la signalera comme non satisfaite.
     """
     retenues: dict[str, RessourceCatalogue] = {}
@@ -97,8 +99,6 @@ def resoudre_ressources_choisies(
         choisie = _trouver_candidat_choisi(candidats, ids_choisis)
         if choisie is not None:
             retenues[categorie] = choisie
-        elif len(candidats) == 1:
-            retenues[categorie] = candidats[0]
     return retenues
 
 

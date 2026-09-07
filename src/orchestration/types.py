@@ -13,8 +13,9 @@ class QuestionBesoin:
 
 @dataclass(frozen=True)
 class QuestionChoixRessources:
-    """Une catégorie a plusieurs ressources candidates non encore choisies.
+    """Une catégorie a un ou plusieurs candidats que le prospect n'a pas encore tranchés.
 
+    Même à candidat unique, rien n'entre au devis sans son accord explicite.
     Une seule catégorie à la fois, jamais groupées : ce choix se fait par
     sélection directe dans le canal (boutons, liste), sans passer par le
     LLM, donc rien à gagner à réduire le nombre de tours (voir D04).

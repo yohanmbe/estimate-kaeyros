@@ -1,7 +1,10 @@
 """Identification de la prochaine catégorie dont le choix de ressource est en attente
 
-Une catégorie avec un seul candidat est retenue automatiquement en amont
-(il n'y a rien à décider) : elle n'est jamais renvoyée ici.
+Toute catégorie avec au moins un candidat doit être tranchée par le
+prospect, même à candidat unique : rien n'entre dans le devis sans son
+accord explicite, y compris une catégorie où il n'y a qu'une option (il
+peut encore la refuser). Seule une catégorie sans aucun candidat échappe à
+ce choix, faute d'avoir quoi que ce soit à proposer.
 
 Une seule catégorie à la fois, jamais groupées : contrairement au besoin
 (voir champs_obligatoires.py), ce choix se fait par sélection directe dans
@@ -16,7 +19,7 @@ def identifier_prochaine_categorie_a_choisir(
     besoin: Besoin,
     candidats_par_categorie: dict[str, list[RessourceCatalogue]],
 ) -> tuple[str, list[RessourceCatalogue]] | None:
-    """Première catégorie à choix multiple que le prospect n'a pas encore tranchée"""
+    """Première catégorie ayant un candidat que le prospect n'a pas encore tranchée"""
     categories_en_attente = identifier_categories_restant_a_choisir(besoin, candidats_par_categorie)
     if not categories_en_attente:
         return None
@@ -28,16 +31,17 @@ def identifier_categories_restant_a_choisir(
     besoin: Besoin,
     candidats_par_categorie: dict[str, list[RessourceCatalogue]],
 ) -> list[str]:
-    """Toutes les catégories à choix multiple encore en attente, pas seulement la première.
+    """Toutes les catégories ayant un candidat encore en attente, pas seulement la première.
 
     Sert à l'arrêt anticipé du parcours (« j'ai tout ce qu'il me faut ») : le
     prospect peut arrêter de choisir avant d'avoir parcouru tout le catalogue,
-    et ces catégories sont alors exclues d'un bloc plutôt qu'une par une.
+    et ces catégories sont alors exclues d'un bloc plutôt qu'une par une —
+    y compris celles à candidat unique, qui n'ont sinon jamais été tranchées.
     """
     return [
         categorie
         for categorie, candidats in candidats_par_categorie.items()
-        if len(candidats) >= 2 and not _un_candidat_deja_choisi(candidats, besoin)
+        if len(candidats) >= 1 and not _un_candidat_deja_choisi(candidats, besoin)
     ]
 
 

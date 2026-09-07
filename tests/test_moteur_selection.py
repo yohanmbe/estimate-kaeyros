@@ -164,10 +164,18 @@ def test_categorie_absente_du_modele_nest_pas_proposee():
     assert list(candidats) == ["salle", "restauration"]
 
 
-def test_categorie_a_candidat_unique_est_retenue_sans_choix_du_prospect():
+def test_categorie_a_candidat_unique_nest_pas_retenue_sans_choix_du_prospect():
     candidats = {"restauration": [prestation("Menu", "restauration", 8_000)]}
 
     retenues = resoudre_ressources_choisies(candidats, ids_choisis=())
+
+    assert retenues == {}
+
+
+def test_categorie_a_candidat_unique_est_retenue_une_fois_choisie():
+    candidats = {"restauration": [prestation("Menu", "restauration", 8_000)]}
+
+    retenues = resoudre_ressources_choisies(candidats, ids_choisis=("Menu",))
 
     assert retenues["restauration"].nom == "Menu"
 
