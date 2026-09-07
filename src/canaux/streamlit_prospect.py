@@ -48,6 +48,7 @@ from src.orchestration.types import (  # noqa: E402
     QuestionBesoin,
     QuestionChoixRessources,
 )
+from src.pdf.generer_devis import generer_pdf_devis  # noqa: E402
 
 NOM_MODELE_EVENEMENT = "Mariage"
 
@@ -663,9 +664,23 @@ def _afficher_devis(resultat: ResultatChiffrage, tenant: TenantContexte) -> None
         </div>""",
         unsafe_allow_html=True,
     )
+    _afficher_bouton_telechargement(resultat, tenant, besoin)
 
     _afficher_categories_non_satisfaites(resultat)
     _afficher_alerte_budget(resultat, besoin)
+
+
+def _afficher_bouton_telechargement(
+    resultat: ResultatChiffrage, tenant: TenantContexte, besoin: Besoin
+) -> None:
+    """Bouton de téléchargement du devis en PDF, mis en forme par src/pdf (D14)"""
+    st.download_button(
+        "Télécharger le PDF",
+        data=generer_pdf_devis(resultat, tenant, besoin),
+        file_name=f"devis-{tenant.slug}.pdf",
+        mime="application/pdf",
+        key="telecharger-pdf",
+    )
 
 
 def _afficher_impasse(resultat: ResultatChiffrage) -> None:

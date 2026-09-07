@@ -1,0 +1,37 @@
+{
+  "nom": "Réceptions Douala",
+  "slug": "receptions-douala",
+  "ville": "Douala",
+  "logo": "receptions-douala.png",
+  "ressources": [
+    {
+      "nom": "Salle Akwa",
+      "categorie": "salle",
+      "unite_facturation": "jour",
+      "prix_unitaire": 400000,
+      "attributs": { "quartier": "Akwa", "capacite": 250 }
+    },
+    {
+      "nom": "Chaise pliante housse blanche",
+      "categorie": "mobilier",
+      "unite_facturation": "unite",
+      "prix_unitaire": 1000
+    },
+    {
+      "nom": "Menu Standard",
+      "categorie": "restauration",
+      "unite_facturation": "personne",
+      "prix_unitaire": 7500
+    }
+  ],
+  "modele_mariage": [
+    { "categorie": "salle", "base_calcul": "duree_jours", "quantite_par_unite": 1 },
+    { "categorie": "mobilier", "base_calcul": "nombre_invites", "quantite_par_unite": 1 },
+    { "categorie": "restauration", "base_calcul": "nombre_invites", "quantite_par_unite": 1 }
+  ],
+  "gestionnaire": {
+    "email": "gestionnaire@receptions-douala.cm",
+    "nom": "Gestionnaire Réceptions Douala",
+    "mot_de_passe": "à-remplacer-avant-le-premier-lancement"
+  }
+}

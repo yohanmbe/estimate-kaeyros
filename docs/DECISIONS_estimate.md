@@ -211,4 +211,38 @@ silence ce que le prospect venait de dire, qui devait le répéter. Mesuré
 comme préexistant à D22, pas causé par l'allongement du prompt (huit essais
 sur chaque version du prompt, aucun échec des deux côtés).
 
+## D24 — Tenant.logo stocke un nom de fichier, résolu dans un dossier fixe (2026-09-07)
+
+Tenant.logo contient uniquement un nom de fichier (par exemple « etoile.png »),
+jamais un chemin absolu ni un chemin relatif au répertoire de travail.
+src/canaux/tenant.py le résout dans data/logos/ au moment de construire le
+TenantContexte, avant que le PDF (voir D14) ou tout autre canal n'en ait besoin.
+Un nom introuvable donne un logo absent, jamais une erreur.
+Raison : un chemin absolu ne survit pas à un changement de machine ou de
+déploiement ; un chemin relatif dépend de l'endroit d'où Streamlit est lancé,
+ce qui n'est pas garanti stable. Un dossier fixe partagé par tout le code
+règle les deux problèmes d'un coup, sur le même principe que le logo de
+repli de la barre latérale (src/canaux/assets/, voir _logo_marque).
+Contrepartie : déposer le fichier dans data/logos/ ne suffit pas seul, il faut
+aussi que Tenant.logo porte le nom exact du fichier — pour l'instant fait dans
+data/seed/seed.py, en l'absence d'écran gestionnaire pour l'uploader (voir D18).
+
+## D25 — Un provisionnement de tenant partagé entre démo et vrais clients (2026-09-07)
+
+src/catalogue/provisionnement.py porte la logique de création ou mise à jour
+d'un tenant complet (profil, catalogue, modèle Mariage, gestionnaire),
+appelée à la fois par data/seed/seed.py (le tenant de démonstration, codé en
+dur) et par data/seed/ajouter_tenant.py (un vrai client, décrit dans un
+fichier JSON hors du dépôt, voir data/clients/README.md). Aucun écran
+gestionnaire pour créer un tenant soi-même : ça reste un script lancé par
+l'opérateur (voir D18).
+Raison : chaque entreprise a son propre catalogue et ses propres prix, qui
+n'ont rien à faire codés en dur dans une source versionnée. Dupliquer la
+logique de création entre deux scripts aurait fait diverger à la première
+correction (voir la mise à jour d'un tenant déjà existant, elle-même corrigée
+après avoir découvert que get_or_create_tenant ne mettait pas ses champs à
+jour). Un fichier JSON par client, gitignoré sauf son exemple, garde les
+données commerciales hors du code sans exiger un écran d'administration
+hors périmètre v1.
+
 [Décisions suivantes à ajouter au fil du développement, avec la date.]

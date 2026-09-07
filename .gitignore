@@ -15,3 +15,9 @@ __pycache__/
 *.pdf
 .pytest_cache/
 alembic/versions/*.pyc
+
+# Configurations de vrais clients (portent un mot de passe en clair au
+# premier lancement) : voir data/clients/README.md. Le seul fichier suivi de
+# ce dossier est l'exemple, gardé comme gabarit.
+data/clients/*.json
+!data/clients/exemple.json

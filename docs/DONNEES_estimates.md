@@ -41,7 +41,9 @@ habitude.
 - slug : identifiant court et unique utilisé dans l'URL d'accès au chat
   (par exemple « etoile »). C'est ce qui rattache un prospect à une
   entreprise sans qu'il ait à choisir.
-- logo : chemin du logo, repris dans l'en-tête du PDF (voir D14)
+- logo : nom du fichier logo, repris dans l'en-tête du PDF (voir D14). Résolu
+  dans data/logos/ par src/canaux/tenant.py, jamais stocké comme chemin
+  absolu ou relatif au répertoire de lancement (voir D24).
 - actif : booléen
 
 ### utilisateur

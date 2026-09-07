@@ -10,6 +10,7 @@ class TenantContexte:
     id: str
     nom: str
     slug: str
+    logo: str | None = None
 
 
 @dataclass(frozen=True)

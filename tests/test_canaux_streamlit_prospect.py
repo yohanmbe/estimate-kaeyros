@@ -156,6 +156,16 @@ def test_mariage_300_invites_bastos_affiche_le_total_de_lestimation(base_branche
     assert "non contractuelle" in texte
 
 
+def test_estimation_affichee_propose_le_telechargement_du_pdf(base_branchee):
+    creer_tenant_etoile(base_branchee)
+
+    ecran = choisir_premiere_option(repondre(lancer_ecran("etoile"), MESSAGES_MARIAGE_300))
+
+    boutons_telechargement = ecran.download_button
+    assert len(boutons_telechargement) == 1
+    assert boutons_telechargement[0].label == "Télécharger le PDF"
+
+
 def test_message_envoye_apres_avoir_choisi_une_salle_ne_perd_pas_ce_choix(base_branchee):
     """Le schéma JSON de l'extracteur n'inclut pas ressources_choisies : un
     message envoyé après un choix ne doit pas faire redemander ce choix."""
