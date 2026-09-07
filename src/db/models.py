@@ -31,6 +31,7 @@ class Tenant(Base):
     utilisateurs: Mapped[list["Utilisateur"]] = relationship(back_populates="tenant")
     ressources: Mapped[list["Ressource"]] = relationship(back_populates="tenant")
     modeles_evenement: Mapped[list["ModeleEvenement"]] = relationship(back_populates="tenant")
+    prospects: Mapped[list["Prospect"]] = relationship(back_populates="tenant")
     demandes: Mapped[list["Demande"]] = relationship(back_populates="tenant")
     devis: Mapped[list["Devis"]] = relationship(back_populates="tenant")
 
@@ -85,6 +86,22 @@ class ModeleEvenement(Base):
     tenant: Mapped["Tenant"] = relationship(back_populates="modeles_evenement")
 
 
+class Prospect(Base):
+    """La personne qui demande un devis, avec ses coordonnées de rappel"""
+    __tablename__ = "prospect"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=generate_uuid)
+    tenant_id: Mapped[str] = mapped_column(ForeignKey("tenant.id"), nullable=False, index=True)
+    nom: Mapped[str] = mapped_column(String(200), nullable=False)
+    telephone: Mapped[str] = mapped_column(String(20), nullable=False)
+    email: Mapped[str | None] = mapped_column(String(255))
+    consentement_contact: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    date_creation: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
+
+    tenant: Mapped["Tenant"] = relationship(back_populates="prospects")
+    demandes: Mapped[list["Demande"]] = relationship(back_populates="prospect")
+
+
 class Demande(Base):
     """Une conversation avec un prospect, en cours ou terminée"""
     __tablename__ = "demande"
@@ -92,7 +109,7 @@ class Demande(Base):
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=generate_uuid)
     tenant_id: Mapped[str] = mapped_column(ForeignKey("tenant.id"), nullable=False, index=True)
     canal: Mapped[str] = mapped_column(String(20), nullable=False)
-    identifiant_prospect: Mapped[str | None] = mapped_column(String(255))
+    prospect_id: Mapped[str | None] = mapped_column(ForeignKey("prospect.id"), index=True)
     etat: Mapped[str] = mapped_column(String(20), nullable=False, default="en_cours")
     besoin: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
     date_creation: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
@@ -101,6 +118,7 @@ class Demande(Base):
     )
 
     tenant: Mapped["Tenant"] = relationship(back_populates="demandes")
+    prospect: Mapped["Prospect | None"] = relationship(back_populates="demandes")
     devis: Mapped[list["Devis"]] = relationship(back_populates="demande")
 
 

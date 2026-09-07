@@ -104,12 +104,35 @@ prestations sont attendues et selon quelle règle on calcule les
 quantités. Ce qui fait varier le prix, ce sont la ressource choisie, la
 durée et les quantités.
 
+### prospect
+La personne qui demande un devis, avec ses coordonnées de rappel. Table
+séparée du besoin : le besoin décrit l'événement, le prospect décrit qui
+demande. Sans ça, une demande qui n'aboutit pas ne peut jamais être
+relancée par le commercial (voir le cahier des charges : « sa demande
+arrive qualifiée chez le commercial »).
+
+- id, tenant_id
+- nom : obligatoire
+- telephone : obligatoire, c'est le moyen de rappel principal
+- email : optionnel
+- consentement_contact : booléen, le prospect a fourni ses coordonnées
+  pour être recontacté à propos de cette demande
+- date_creation
+
+Pas de déduplication en v1 : un même numéro qui revient crée une nouvelle
+ligne plutôt que de chercher une correspondance existante. Le mécanisme
+de rapprochement entre plusieurs demandes d'un même prospect n'est pas
+un besoin exprimé pour cette version.
+
 ### demande
 Une conversation en cours ou terminée.
-- id, tenant_id, canal (streamlit / whatsapp), identifiant_prospect
+- id, tenant_id, canal (streamlit / whatsapp), prospect_id
 - etat : en_cours, complete, abandonnee
 - besoin : JSON, le besoin structuré extrait au fil de la conversation
 - date_creation, date_modification
+
+prospect_id est nullable : une conversation peut commencer avant que le
+prospect ait donné ses coordonnées.
 
 Structure du besoin :
   type_evenement, date_evenement, ville, quartier_souhaite,

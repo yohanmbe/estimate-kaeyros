@@ -245,4 +245,24 @@ jour). Un fichier JSON par client, gitignoré sauf son exemple, garde les
 données commerciales hors du code sans exiger un écran d'administration
 hors périmètre v1.
 
+## D26 — Le prospect a sa propre table, distincte du besoin (2026-09-07)
+
+Ajout de la table prospect (nom, telephone obligatoires, email et
+consentement_contact) et remplacement de demande.identifiant_prospect
+(une chaîne libre, jamais lue ni écrite par le code) par
+demande.prospect_id, une vraie clé étrangère.
+Raison : le besoin décrit l'événement, pas qui le demande. Sans
+coordonnées structurées, une demande qui n'aboutit pas ne peut jamais
+être relancée par le commercial, alors que le cahier des charges pose
+justement que « sa demande arrive qualifiée chez le commercial ».
+Cohérent avec D02 (objets concrets nommés plutôt que chaînes vagues).
+Pas de déduplication par téléphone en v1 : chaque demande crée une
+nouvelle ligne prospect, pas de recherche-ou-création. Le rapprochement
+entre plusieurs demandes d'un même prospect n'est pas un besoin exprimé
+pour cette version.
+Portée volontairement limitée au modèle de données : le formulaire de
+saisie dans le chat Streamlit et la persistance d'une ligne demande par
+conversation (qui n'existe pas encore, la conversation vivant entièrement
+en st.session_state) restent à faire séparément.
+
 [Décisions suivantes à ajouter au fil du développement, avec la date.]
