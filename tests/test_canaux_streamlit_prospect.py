@@ -143,6 +143,40 @@ def test_ecran_accueille_le_prospect_au_nom_de_lentreprise(base_branchee):
     assert ecran.chat_input != []
 
 
+def test_message_daccueil_personnalise_avec_le_nom_du_prospect(base_branchee):
+    creer_tenant_etoile(base_branchee)
+
+    ecran = soumettre_formulaire_prospect(lancer_ecran("etoile"), nom="Awa Ngo")
+
+    assert "Bonjour Awa Ngo" in texte_affiche(ecran)
+
+
+def test_formulaire_prospect_avec_telephone_invalide_affiche_une_erreur(base_branchee):
+    creer_tenant_etoile(base_branchee)
+
+    ecran = soumettre_formulaire_prospect(lancer_ecran("etoile"), telephone="pas-un-numero")
+
+    assert "numéro de téléphone" in ecran.error[0].value
+    assert ecran.chat_input == []
+
+
+def test_formulaire_prospect_avec_email_invalide_affiche_une_erreur(base_branchee):
+    creer_tenant_etoile(base_branchee)
+    ecran = lancer_ecran("etoile")
+
+    champ_nom = next(c for c in ecran.text_input if c.key == "prospect-nom")
+    champ_telephone = next(c for c in ecran.text_input if c.key == "prospect-telephone")
+    champ_email = next(c for c in ecran.text_input if c.key == "prospect-email")
+    champ_nom.set_value("Awa Ngo")
+    champ_telephone.set_value("+237690000000")
+    champ_email.set_value("pas-un-email")
+    bouton_soumettre = next(b for b in ecran.button if b.key == "prospect-soumettre")
+    ecran = bouton_soumettre.click().run()
+
+    assert "adresse email" in ecran.error[0].value
+    assert ecran.chat_input == []
+
+
 def test_formulaire_prospect_bloque_le_chat_tant_quil_nest_pas_soumis(base_branchee):
     creer_tenant_etoile(base_branchee)
 

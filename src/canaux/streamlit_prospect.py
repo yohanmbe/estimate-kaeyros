@@ -23,6 +23,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from src.canaux.prospect import enregistrer_prospect  # noqa: E402
 from src.canaux.tenant import extraire_slug_depuis_url, resoudre_tenant  # noqa: E402
 from src.canaux.types import ProspectContexte, TenantContexte, TenantIndisponible  # noqa: E402
+from src.canaux.validation import email_valide, telephone_valide  # noqa: E402
 from src.catalogue.ressources import (  # noqa: E402
     charger_modele_evenement,
     charger_ressources_actives,
@@ -434,6 +435,13 @@ def _afficher_formulaire_prospect(tenant: TenantContexte) -> None:
     if not nom.strip() or not telephone.strip():
         st.error("Merci d'indiquer votre nom et votre téléphone.")
         return
+    if not telephone_valide(telephone.strip()):
+        st.error("Ce numéro de téléphone ne semble pas valide.")
+        return
+    email_normalise = email.strip() or None
+    if email_normalise is not None and not email_valide(email_normalise):
+        st.error("Cette adresse email ne semble pas valide.")
+        return
 
     with ouvrir_session() as session:
         st.session_state.prospect = enregistrer_prospect(
@@ -441,7 +449,7 @@ def _afficher_formulaire_prospect(tenant: TenantContexte) -> None:
             tenant_id=tenant.id,
             nom=nom.strip(),
             telephone=telephone.strip(),
-            email=email.strip() or None,
+            email=email_normalise,
             consentement_contact=consentement,
         )
     st.rerun()
@@ -455,14 +463,19 @@ def _initialiser_conversation_si_absente(tenant: TenantContexte) -> None:
 
 
 def _reinitialiser_conversation(tenant: TenantContexte, nom_scenario: str) -> None:
-    """Repart d'un besoin vide et d'un extracteur neuf"""
+    """Repart d'un besoin vide et d'un extracteur neuf.
+
+    Le prospect est déjà résolu à cet appel (voir _resoudre_prospect_ou_bloquer,
+    appelé avant dans main() et avant tout accès au panneau latéral).
+    """
+    prospect = st.session_state.prospect
     st.session_state.besoin = Besoin()
     st.session_state.extracteur = _extracteur_de_la_conversation(nom_scenario)
     st.session_state.scenario_actif = nom_scenario
     st.session_state.historique = [
         (
             AGENT,
-            f"Bonjour, je prépare votre estimation pour {tenant.nom}. "
+            f"Bonjour {prospect.nom}, je prépare votre estimation pour {tenant.nom}. "
             "Décrivez-moi votre événement : le type, la date, la ville, "
             "le nombre d'invités et la durée.",
         )
