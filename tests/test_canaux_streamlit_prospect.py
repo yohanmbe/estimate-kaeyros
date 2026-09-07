@@ -220,6 +220,66 @@ def test_prospect_peut_refuser_une_categorie_plutot_que_choisir(base_branchee):
     assert "Non chiffré" not in texte
 
 
+def creer_tenant_avec_deux_categories_a_choix_multiple(session: Session) -> Tenant:
+    """Salle et restauration ont chacune deux candidats, contrairement à
+    creer_tenant_etoile où seule la salle en a plusieurs : nécessaire pour
+    tester l'arrêt du parcours de choix avant la fin du catalogue."""
+    tenant = Tenant(nom="Événements Deux Choix", slug="deux-choix", ville="Yaoundé")
+    session.add(tenant)
+    session.flush()
+    session.add_all(
+        Ressource(
+            tenant_id=tenant.id, nom=nom, categorie=categorie, unite_facturation=unite,
+            prix_unitaire=prix, attributs=attributs,
+        )
+        for nom, categorie, unite, prix, attributs in [
+            ("Salle Bastos", "salle", "jour", 450_000, {"capacite": 300, "quartier": "Bastos"}),
+            ("Salle Mvan", "salle", "jour", 600_000, {"capacite": 500, "quartier": "Mvan"}),
+            ("Menu Standard", "restauration", "personne", 8_000, {}),
+            ("Menu Prestige", "restauration", "personne", 15_000, {}),
+        ]
+    )
+    session.add(
+        ModeleEvenement(
+            tenant_id=tenant.id, nom="Mariage",
+            lignes_par_defaut=[
+                {"categorie": "salle", "base_calcul": "duree_jours", "quantite_par_unite": 1},
+                {"categorie": "restauration", "base_calcul": "nombre_invites", "quantite_par_unite": 1},
+            ],
+        )
+    )
+    session.commit()
+    return tenant
+
+
+def test_bouton_jai_tout_ce_quil_me_faut_apparait_a_cote_du_refus(base_branchee):
+    creer_tenant_avec_deux_categories_a_choix_multiple(base_branchee)
+
+    ecran = repondre(lancer_ecran("deux-choix"), MESSAGES_MARIAGE_300)
+
+    labels = [bouton.label for bouton in ecran.button]
+    assert "J'ai tout ce qu'il me faut" in labels
+    assert "Je ne veux pas de salle" in labels
+
+
+def test_bouton_jai_tout_ce_quil_me_faut_arrete_le_parcours_de_choix(base_branchee):
+    creer_tenant_avec_deux_categories_a_choix_multiple(base_branchee)
+    ecran = repondre(lancer_ecran("deux-choix"), MESSAGES_MARIAGE_300)
+
+    # Choisit la première salle, ce qui ferait normalement passer à la
+    # question sur la restauration.
+    ecran = [bouton for bouton in ecran.button if bouton.label == "Choisir"][0].click().run()
+    assert "Choisissez votre restauration" in texte_affiche(ecran)
+
+    bouton_stop = next(bouton for bouton in ecran.button if bouton.label == "J'ai tout ce qu'il me faut")
+    ecran = bouton_stop.click().run()
+
+    texte = texte_affiche(ecran)
+    assert "Choisissez votre restauration" not in texte
+    assert "450\xa0000\xa0FCFA" in texte  # la salle choisie est bien chiffrée
+    assert "Non chiffré" not in texte  # exclue par choix, pas un trou du catalogue
+
+
 def test_aucune_salle_assez_grande_est_annoncee_sans_bloquer_le_reste(base_branchee):
     creer_tenant_etoile(base_branchee)
     ecran = lancer_ecran("etoile")

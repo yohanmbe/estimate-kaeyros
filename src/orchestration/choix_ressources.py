@@ -17,10 +17,28 @@ def identifier_prochaine_categorie_a_choisir(
     candidats_par_categorie: dict[str, list[RessourceCatalogue]],
 ) -> tuple[str, list[RessourceCatalogue]] | None:
     """Première catégorie à choix multiple que le prospect n'a pas encore tranchée"""
-    for categorie, candidats in candidats_par_categorie.items():
-        if len(candidats) >= 2 and not _un_candidat_deja_choisi(candidats, besoin):
-            return categorie, candidats
-    return None
+    categories_en_attente = identifier_categories_restant_a_choisir(besoin, candidats_par_categorie)
+    if not categories_en_attente:
+        return None
+    premiere = categories_en_attente[0]
+    return premiere, candidats_par_categorie[premiere]
+
+
+def identifier_categories_restant_a_choisir(
+    besoin: Besoin,
+    candidats_par_categorie: dict[str, list[RessourceCatalogue]],
+) -> list[str]:
+    """Toutes les catégories à choix multiple encore en attente, pas seulement la première.
+
+    Sert à l'arrêt anticipé du parcours (« j'ai tout ce qu'il me faut ») : le
+    prospect peut arrêter de choisir avant d'avoir parcouru tout le catalogue,
+    et ces catégories sont alors exclues d'un bloc plutôt qu'une par une.
+    """
+    return [
+        categorie
+        for categorie, candidats in candidats_par_categorie.items()
+        if len(candidats) >= 2 and not _un_candidat_deja_choisi(candidats, besoin)
+    ]
 
 
 def _un_candidat_deja_choisi(candidats: list[RessourceCatalogue], besoin: Besoin) -> bool:

@@ -1,6 +1,9 @@
 from src.extraction.types import Besoin
 from src.moteur.types import RessourceCatalogue
-from src.orchestration.choix_ressources import identifier_prochaine_categorie_a_choisir
+from src.orchestration.choix_ressources import (
+    identifier_categories_restant_a_choisir,
+    identifier_prochaine_categorie_a_choisir,
+)
 
 
 def ressource(id_: str, categorie: str) -> RessourceCatalogue:
@@ -77,3 +80,38 @@ def test_aucune_categorie_ne_correspond_quand_toutes_sont_resolues():
     resultat = identifier_prochaine_categorie_a_choisir(besoin, candidats)
 
     assert resultat is None
+
+
+def test_categories_restant_a_choisir_renvoie_tout_pas_seulement_la_premiere():
+    """Sert au bouton « j'ai tout ce qu'il me faut » : il faut pouvoir exclure
+    toutes les catégories en attente d'un coup, pas une par une."""
+    candidats = {
+        "salle": [ressource("salle-1", "salle"), ressource("salle-2", "salle")],
+        "mobilier": [ressource("chaise-1", "mobilier")],
+        "restauration": [ressource("resto-1", "restauration"), ressource("resto-2", "restauration")],
+        "decoration": [ressource("deco-1", "decoration"), ressource("deco-2", "decoration")],
+    }
+
+    resultat = identifier_categories_restant_a_choisir(Besoin(), candidats)
+
+    assert resultat == ["salle", "restauration", "decoration"]
+
+
+def test_categories_deja_choisies_ou_a_candidat_unique_absentes_du_reste_a_choisir():
+    candidats = {
+        "salle": [ressource("salle-1", "salle"), ressource("salle-2", "salle")],
+        "mobilier": [ressource("chaise-1", "mobilier")],
+        "restauration": [ressource("resto-1", "restauration"), ressource("resto-2", "restauration")],
+    }
+    besoin = Besoin(ressources_choisies=("resto-1",))
+
+    resultat = identifier_categories_restant_a_choisir(besoin, candidats)
+
+    assert resultat == ["salle"]
+
+
+def test_aucune_categorie_restante_quand_tout_est_decide():
+    candidats = {"salle": [ressource("salle-1", "salle"), ressource("salle-2", "salle")]}
+    besoin = Besoin(ressources_choisies=("salle-1",))
+
+    assert identifier_categories_restant_a_choisir(besoin, candidats) == []

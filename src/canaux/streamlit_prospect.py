@@ -36,6 +36,9 @@ from src.extraction.interface import InterfaceLLM  # noqa: E402
 from src.extraction.mock import ExtracteurMock  # noqa: E402
 from src.extraction.types import Besoin  # noqa: E402
 from src.moteur.types import ResultatChiffrage, RessourceCatalogue  # noqa: E402
+from src.orchestration.choix_ressources import (  # noqa: E402
+    identifier_categories_restant_a_choisir,
+)
 from src.orchestration.machine import decider_prochaine_etape  # noqa: E402
 from src.orchestration.parcours import chiffrer_pour_besoin, resoudre_candidats  # noqa: E402
 from src.orchestration.questions import (  # noqa: E402
@@ -482,6 +485,23 @@ def _exclure_categorie(categorie: str) -> None:
     _repondre()
 
 
+def _terminer_les_choix() -> None:
+    """Le prospect a déjà tout ce qu'il veut : les catégories encore en
+    attente sont exclues d'un bloc, le chiffrage se fait avec ce qui est
+    déjà retenu plutôt que d'obliger à parcourir tout le catalogue.
+    """
+    besoin = st.session_state.besoin
+    candidats = resoudre_candidats(besoin, st.session_state.catalogue, st.session_state.modele)
+    categories_en_attente = identifier_categories_restant_a_choisir(besoin, candidats)
+    st.session_state.besoin = replace(
+        besoin, prestations_exclues=besoin.prestations_exclues + tuple(categories_en_attente)
+    )
+    st.session_state.historique.append(
+        (PROSPECT, "J'ai tout ce qu'il me faut, calculez mon estimation.")
+    )
+    _repondre()
+
+
 def _repondre() -> None:
     """Ajoute au fil la réponse de l'agent à l'état courant du besoin"""
     st.session_state.historique.append((AGENT, _formuler_reponse(_decider())))
@@ -590,11 +610,21 @@ def _afficher_options(decision: QuestionChoixRessources) -> None:
                 _enregistrer_choix(candidat)
                 st.rerun()
 
-    if st.button(
+    colonne_refus, colonne_fin = st.columns(2)
+    if colonne_refus.button(
         f"Je ne veux pas de {libelle_categorie(decision.categorie)}",
         key=f"exclure-{decision.categorie}",
+        use_container_width=True,
     ):
         _exclure_categorie(decision.categorie)
+        st.rerun()
+    if colonne_fin.button(
+        "J'ai tout ce qu'il me faut",
+        key="terminer-choix",
+        type="primary",
+        use_container_width=True,
+    ):
+        _terminer_les_choix()
         st.rerun()
 
 
