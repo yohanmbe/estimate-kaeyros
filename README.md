@@ -174,6 +174,70 @@ uv run streamlit run dashboard/app.py --server.port 8502
 Le tenant y est établi par la connexion, jamais par un paramètre d'URL ni par
 une liste déroulante.
 
+## Déploiement de test
+
+L'ensemble tient sur trois services gratuits : une base PostgreSQL infogérée
+([Neon](https://neon.tech), palier gratuit sans expiration), deux applications
+Streamlit sur [Streamlit Community Cloud](https://share.streamlit.io) — le chat
+et le tableau de bord sont deux déploiements du même dépôt — et le palier
+gratuit de Groq déjà utilisé en développement.
+
+`requirements.txt` sert à cet hébergement ; `pyproject.toml` et uv restent la
+référence en développement.
+
+### 1. La base
+
+Créer un projet Neon, récupérer sa chaîne de connexion, puis créer le schéma et
+les données depuis le poste local en pointant `DATABASE_URL` vers Neon :
+
+```bash
+uv run alembic upgrade head
+uv run python data/seed/seed.py
+uv run python data/seed/demonstration.py etoile
+```
+
+Garder ensuite cette même base en développement évite d'entretenir deux jeux de
+données divergents.
+
+### 2. Les deux applications
+
+Sur Streamlit Community Cloud, déployer deux fois le même dépôt :
+
+| Application | Fichier principal | Secrets à renseigner |
+|---|---|---|
+| Chat du prospect | `src/canaux/streamlit_prospect.py` | `DATABASE_URL`, `LLM_PROVIDER`, `GROQ_API_KEY` |
+| Tableau de bord | `dashboard/app.py` | `DATABASE_URL` |
+
+Les secrets se saisissent dans l'interface de Streamlit Cloud, au format TOML.
+Ils sont exposés au processus comme variables d'environnement, ce que
+`src/db/session.py` et `src/extraction/fabrique.py` lisent déjà : aucun code à
+adapter. Si Python 3.13 n'est pas proposé, 3.12 convient — le code n'utilise
+aucune syntaxe postérieure.
+
+L'adresse du chat porte le slug de l'entreprise :
+`https://<votre-app>.streamlit.app/?slug=etoile`
+
+### 3. Avant d'ouvrir l'accès à qui que ce soit
+
+- **Changer les mots de passe de démonstration.** Ceux de
+  [data/seed/README.md](data/seed/README.md) sont publics par construction.
+  `provisionner_tenant` ne touche jamais au mot de passe d'un compte déjà
+  créé (pour ne pas écraser en silence un mot de passe changé côté client),
+  donc relancer `seed.py` ou `ajouter_tenant.py` ne suffit pas : utiliser
+  `data/seed/changer_mot_de_passe.py`, un par gestionnaire.
+  ```bash
+  uv run python data/seed/changer_mot_de_passe.py gestionnaire@etoile.com
+  ```
+- **Ne déposer aucune donnée de client réel** sur un déploiement de test.
+- Vérifier que `.env` n'est pas suivi par git avant de rendre le dépôt public.
+
+### Limites de l'hébergement gratuit
+
+La base Neon se met en veille après quelques minutes sans activité et se
+réveille à la première requête : compter quelques secondes. Une application
+Streamlit inactive plusieurs jours s'endort de la même façon. Avant une
+démonstration, ouvrir les deux adresses une fois pour les réveiller.
+
 ## Structure du dépôt
 
 Les modules portent le nom de leur fonction, jamais celui du produit.

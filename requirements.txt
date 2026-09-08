@@ -1,0 +1,17 @@
+# Dépendances d'exécution pour l'hébergement (Streamlit Community Cloud).
+# uv et pyproject.toml restent la référence en développement : ce fichier ne
+# liste que ce qu'il faut pour faire tourner les deux écrans en production.
+#
+# Volontairement absents :
+#   pytest            n'est jamais exécuté sur l'hébergement
+#   fastapi, uvicorn  déclarés dans pyproject mais utilisés nulle part
+#   mistralai         fournisseur abandonné (voir D20), importé paresseusement :
+#                     ne pas l'installer n'a d'effet que si LLM_PROVIDER=mistral
+
+streamlit>=1.63.0
+sqlalchemy>=2.0.52
+psycopg2-binary>=2.9.12
+alembic>=1.19.1
+fpdf2>=2.8.8
+groq>=1.7.0
+python-dotenv>=1.2.3

@@ -36,3 +36,19 @@ sonorisation, personnel, logistique) et un modèle d'événement **Mariage**
 Usage local/démo uniquement. Les mots de passe sont hachés en base (scrypt) —
 ces identifiants en clair ne vivent que dans ce fichier, pas ailleurs dans le
 code.
+
+Avant tout déploiement accessible publiquement, changer ces quatre mots de
+passe : ce fichier devient public avec le dépôt, `passe` n'en est alors plus
+un. `provisionner_tenant` (voir D25) ne touche jamais au mot de passe d'un
+compte déjà créé, donc relancer `seed.py` ne suffit pas ; utiliser
+`data/seed/changer_mot_de_passe.py` :
+
+```
+uv run python data/seed/changer_mot_de_passe.py gestionnaire@etoile.com
+uv run python data/seed/changer_mot_de_passe.py gestionnaire@prestige.com
+uv run python data/seed/changer_mot_de_passe.py gestionnaire@malin.com
+uv run python data/seed/changer_mot_de_passe.py gestionnaire@nlongkak.com
+```
+
+Le nouveau mot de passe se saisit en masqué, jamais en argument de la
+commande.
