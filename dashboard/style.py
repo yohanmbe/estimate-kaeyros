@@ -31,6 +31,19 @@ FEUILLE_DE_STYLE = """
 .stMainBlockContainer, .block-container{padding-top:2.2rem;padding-bottom:5rem;max-width:1180px;}
 *{overflow-wrap:break-word;}
 
+/* Un tableau de bord n'est pas un document : par défaut, le navigateur rend
+   tout texte HTML sélectionnable, ce qui affiche un curseur texte au survol
+   et surligne au clic-glissé — donnant l'impression trompeuse qu'un titre ou
+   un libellé est modifiable. On désactive la sélection par défaut sur toute
+   l'application, puis on la rétablit explicitement là où le gestionnaire
+   voudrait copier une vraie donnée (montants, tableaux, récapitulatifs). Les
+   champs de saisie ne sont pas concernés : leur édition passe par le widget
+   natif du navigateur, jamais par la sélection de texte d'un ancêtre. */
+.stApp{user-select:none;}
+.carte__valeur, .bande__valeur, .tranche__effectif, .total__montant,
+.recap__valeur, .table__principal, .table__secondaire, .table__nb{
+  user-select:text;}
+
 /* « Press Enter to submit form » : l'indication native de Streamlit sous un
    champ dans un formulaire. Redondante avec le bouton Enregistrer, elle
    n'apporte rien au gestionnaire et clignote à chaque frappe. */

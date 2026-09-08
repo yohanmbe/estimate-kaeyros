@@ -170,6 +170,15 @@ FEUILLE_DE_STYLE = """
 .stMainBlockContainer, .block-container{max-width:820px;padding-top:1.8rem;padding-bottom:8rem;}
 *{overflow-wrap:break-word;}
 
+/* Par défaut, le navigateur rend tout texte HTML sélectionnable : curseur
+   texte au survol, surlignage au clic-glissé, comme si le titre ou une
+   question de l'agent étaient des champs modifiables. On désactive la
+   sélection par défaut, puis on la rétablit sur ce qu'un prospect voudrait
+   vraiment copier : la conversation elle-même et les montants chiffrés. */
+.stApp{user-select:none;}
+.bulle, .option__prix, .devis__nb, .devis__total-montant, .recap__valeur{
+  user-select:text;}
+
 .entete{background:linear-gradient(135deg,var(--bleu) 0%,var(--bleu-fonce) 100%);
   border-radius:20px;padding:1.5rem 1.7rem;color:#fff;box-shadow:0 14px 34px rgba(15,42,150,.22);
   position:relative;overflow:hidden;}
