@@ -25,7 +25,11 @@ def un_mois_avant(reference: date) -> datetime:
     return datetime(reference.year, reference.month - 1, 15)
 
 
-def test_les_quatre_indicateurs_de_d19_sont_tous_affiches(base_branchee):
+def test_les_trois_indicateurs_affiches_de_d19_sont_tous_presents(base_branchee):
+    """Le montant moyen fait partie de D19 mais n'est plus affiché ici, à la
+    demande du gestionnaire (voir D19) : seuls trois indicateurs restent en
+    carte, le quatrième (répartition par tranche) portant sur une autre carte.
+    """
     tenant = installer_tenant(base_branchee)
     creer_demande(base_branchee, tenant, CE_MOIS, total_devis=2_225_000)
 
@@ -33,12 +37,12 @@ def test_les_quatre_indicateurs_de_d19_sont_tous_affiches(base_branchee):
 
     assert "Demandes reçues" in texte
     assert "Total estimé cumulé" in texte
-    assert "Montant moyen" in texte
+    assert "Montant moyen" not in texte
     assert "Par nombre d'invités" in texte
 
 
-def test_total_cumule_et_montant_moyen_sont_affiches_au_franc_pres(base_branchee):
-    """Deux devis de 2 000 000 et 3 000 000 : total 5 000 000, moyenne 2 500 000"""
+def test_total_cumule_est_affiche_au_franc_pres(base_branchee):
+    """Deux devis de 2 000 000 et 3 000 000 : total 5 000 000"""
     tenant = installer_tenant(base_branchee)
     creer_demande(base_branchee, tenant, CE_MOIS, total_devis=2_000_000)
     creer_demande(
@@ -48,7 +52,6 @@ def test_total_cumule_et_montant_moyen_sont_affiches_au_franc_pres(base_branchee
     texte = texte_affiche(lancer_ecran_connecte(tenant.id))
 
     assert formater_nombre(5_000_000) in texte
-    assert formater_nombre(2_500_000) in texte
 
 
 def test_repartition_par_tranche_montre_les_quatre_tranches(base_branchee):

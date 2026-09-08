@@ -102,6 +102,10 @@ section[data-testid="stSidebar"] [data-testid="stSidebarUserContent"]{
 
 .pied-lateral{border-top:1px solid var(--encre-trait);margin-top:1.5rem;padding-top:1.1rem;
   display:flex;align-items:center;gap:.65rem;}
+/* min-width:0 : le nom de l'entreprise est une saisie libre du gestionnaire,
+   potentiellement longue — sans ça le flex-item ne rétrécirait jamais sous
+   sa largeur de contenu et déborderait de la barre latérale. */
+.pied-lateral__texte{min-width:0;overflow-wrap:break-word;}
 .pied-lateral__pastille{width:2.3rem;height:2.3rem;border-radius:9px;flex:none;background:var(--bleu);
   color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:.8rem;}
 .pied-lateral__nom{display:block;font-weight:700;font-size:.92rem;color:#ffffff;line-height:1.3;}
@@ -242,8 +246,12 @@ section[data-testid="stSidebar"] [data-testid="stSidebarUserContent"]{
 .recap__ligne{display:flex;justify-content:space-between;gap:.75rem;font-size:.85rem;
   padding:.45rem 0;border-bottom:1px dashed var(--trait);}
 .recap__ligne:last-child{border-bottom:none;padding-bottom:0;}
-.recap__cle{color:var(--gris);font-weight:600;}
-.recap__valeur{color:var(--bleu-fonce);font-weight:700;text-align:right;}
+.recap__cle{color:var(--gris);font-weight:600;flex:none;}
+/* min-width:0 : sans lui, un flex-item ne rétrécit jamais sous la largeur de
+   son contenu (même bug que stColumn plus haut) — un email long sans espace
+   déborde alors de la carte au lieu de casser à l'intérieur. */
+.recap__valeur{color:var(--bleu-fonce);font-weight:700;text-align:right;
+  min-width:0;overflow-wrap:break-word;}
 .recap__valeur--manquant{color:#b6bccd;font-weight:500;}
 
 /* ---------- État vide ---------- */

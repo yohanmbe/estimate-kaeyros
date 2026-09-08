@@ -64,6 +64,23 @@ CLE_CONFIRMATION_SUPPRESSION = "confirmation-suppression"
 PRIX_MAXIMUM = 100_000_000
 PAS_DE_PRIX = 5_000
 
+CSS_TABLEAU = """
+<style>
+[class*="st-key-ligne-prestation-"] {
+    padding: 0.65rem 0.9rem !important;
+}
+
+[class*="st-key-entetes-catalogue-"] {
+    padding: 0.65rem 0.9rem !important;
+    background: var(--surface) !important;
+}
+
+[class*="st-key-ligne-prestation-"] .stButton > button p {
+    white-space: nowrap !important;
+    word-break: keep-all !important;
+}
+</style>
+"""
 
 def afficher_catalogue(tenant: TenantContexte, utilisateur: UtilisateurContexte) -> None:
     """Liste des prestations du tenant, ou le formulaire d'ajout et de modification"""
@@ -110,6 +127,7 @@ def _afficher_liste(tenant: TenantContexte) -> None:
             f'<div class="libelle-filtre">{accorder(len(actives), "prestation")}</div>',
             unsafe_allow_html=True,
         )
+        st.markdown(CSS_TABLEAU, unsafe_allow_html=True)
         _afficher_entetes_de_colonnes()
         for prestation in actives:
             _afficher_ligne(tenant, prestation)
@@ -214,7 +232,7 @@ def _afficher_ligne(tenant: TenantContexte, prestation: RessourceGestion) -> Non
                 cellule_double(prestation.nom, _precision_attributs(prestation)),
                 unsafe_allow_html=True,
             )
-        colonnes[1].markdown(pastille_categorie(prestation.categorie), unsafe_allow_html=True)
+        colonnes[1].markdown(f"<div>{pastille_categorie(prestation.categorie)}</div>", unsafe_allow_html=True)
         colonnes[2].markdown(
             f'<div class="table__secondaire">{libelle_unite(prestation.unite_facturation)}</div>',
             unsafe_allow_html=True,

@@ -33,7 +33,7 @@ from src.consultation.types import LigneListeDemande
 from src.db.session import ouvrir_session
 from src.indicateurs.chiffrage import calculer_taux_demandes_chiffrees
 from src.indicateurs.demandes import compter_demandes, repartir_par_tranche_invites
-from src.indicateurs.devis import calculer_montant_moyen, calculer_montant_total
+from src.indicateurs.devis import calculer_montant_total
 from src.indicateurs.periodes import LIBELLES_PERIODES, periode_depuis_libelle
 from src.indicateurs.prospects import calculer_taux_consentement_contact
 from src.indicateurs.types import Periode
@@ -52,7 +52,6 @@ def afficher_tableau_de_bord(
     with ouvrir_session() as session:
         nombre_demandes = compter_demandes(session, tenant.id, periode)
         montant_total = calculer_montant_total(session, tenant.id, periode)
-        montant_moyen = calculer_montant_moyen(session, tenant.id, periode)
         tranches = repartir_par_tranche_invites(session, tenant.id, periode)
         taux_consentement = calculer_taux_consentement_contact(session, tenant.id, periode)
         taux_chiffrees = calculer_taux_demandes_chiffrees(session, tenant.id, periode)
@@ -60,9 +59,7 @@ def afficher_tableau_de_bord(
             session, tenant.id, periode, limite=NOMBRE_DERNIERES_DEMANDES
         )
 
-    _afficher_cartes(
-        nombre_demandes, montant_total, montant_moyen, tranches, libelle_periode
-    )
+    _afficher_cartes(nombre_demandes, montant_total, tranches, libelle_periode)
     _afficher_indicateurs_complementaires(taux_consentement, taux_chiffrees)
     _afficher_dernieres_demandes(dernieres, tenant, periode)
 
@@ -88,15 +85,15 @@ def _afficher_entete(tenant: TenantContexte) -> str:
 
 
 def _afficher_cartes(
-    nombre_demandes: int,
-    montant_total: int,
-    montant_moyen: int,
-    tranches: list,
-    libelle_periode: str,
+    nombre_demandes: int, montant_total: int, tranches: list, libelle_periode: str
 ) -> None:
-    """Les quatre indicateurs de D19, sur une seule ligne"""
+    """Trois des quatre indicateurs de D19, sur une seule ligne.
+
+    Le montant moyen reste calculable (voir src/indicateurs/devis.py) mais
+    n'est plus affiché ici, à la demande du gestionnaire : voir D19.
+    """
     st.write("")
-    cartes = st.columns(4, gap="medium")
+    cartes = st.columns(3, gap="medium")
     cartes[0].markdown(
         carte_indicateur(
             "Demandes reçues", formater_nombre(nombre_demandes), libelle_periode.lower()
@@ -108,10 +105,6 @@ def _afficher_cartes(
         unsafe_allow_html=True,
     )
     cartes[2].markdown(
-        carte_montant("Montant moyen", montant_moyen, "par estimation émise"),
-        unsafe_allow_html=True,
-    )
-    cartes[3].markdown(
         carte_tranches("Par nombre d'invités", tranches, "demandes par tranche"),
         unsafe_allow_html=True,
     )

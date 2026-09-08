@@ -112,7 +112,7 @@ def _afficher_pied_lateral(tenant: TenantContexte, utilisateur: UtilisateurConte
     st.markdown(
         f'<div class="pied-lateral">'
         f'<span class="pied-lateral__pastille">{escape(_initiales(tenant.nom))}</span>'
-        f'<span><span class="pied-lateral__nom">{escape(tenant.nom)}</span>'
+        f'<span class="pied-lateral__texte"><span class="pied-lateral__nom">{escape(tenant.nom)}</span>'
         f'<span class="pied-lateral__meta">{escape(utilisateur.nom)}</span></span></div>',
         unsafe_allow_html=True,
     )

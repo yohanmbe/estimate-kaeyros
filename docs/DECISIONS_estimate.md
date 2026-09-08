@@ -137,14 +137,19 @@ démonstration.
 
 ## D19 — Les KPI se calculent, ils ne s'estiment pas
 
-Le tableau de bord affiche quatre indicateurs issus de requêtes sur la
-base : nombre de demandes reçues, montant total estimé cumulé, montant
-moyen d'une estimation, répartition des demandes par tranche d'invités.
-Aucun indicateur de conversion commerciale.
+Le tableau de bord affiche des indicateurs issus de requêtes sur la base :
+nombre de demandes reçues, montant total estimé cumulé, répartition des
+demandes par tranche d'invités. Aucun indicateur de conversion commerciale.
 Raison : un taux de conversion supposerait de savoir quelles demandes ont
 abouti à une vente, information que le produit ne détient pas puisqu'il
 s'arrête à l'estimation (voir D08). Afficher un chiffre qu'on ne sait pas
 justifier est aussi grave qu'un montant faux sur un devis.
+
+Le montant moyen d'une estimation reste calculable
+(src/indicateurs/devis.py::calculer_montant_moyen, toujours testé) mais
+n'est plus affiché sur le tableau de bord : à effectif de demandes réduit,
+il ne dit rien qu'un total et un compte ne disent déjà, et le gestionnaire
+a demandé à ne plus le voir (2026-09-08).
 
 ## D20 — Options plafonnées à trois pour les catégories hors salle (2026-09-05)
 
