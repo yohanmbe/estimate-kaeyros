@@ -17,25 +17,21 @@ ressources sur les 7 catégories (salle, mobilier, restauration, décoration,
 sonorisation, personnel, logistique) et un modèle d'événement **Mariage**
 (seul type d'événement en v1, voir CLAUDE.md).
 
-| Tenant              | Slug       | Positionnement     | Siège / Quartier    | Salles (quartier / prix jour)            |
-| ------------------- | ---------- | ------------------ | ------------------- | ---------------------------------------- |
-| Événements Étoile   | `etoile`   | Intermédiaire/haut | 671234567, Bastos   | Bastos 450k, Odza 250k, Mvan 600k        |
-| Yaoundé Prestige    | `prestige` | Haut de gamme      | 677654321, Golf     | Bastos 750k, Golf 900k, Warda 1,1M       |
-| Mariage Malin       | `malin`    | Économique         | 650123456, Nkoabang | Nkoabang 120k, Ekounou 180k, Etoudi 280k |
-| Nlongkak Réceptions | `nlongkak` | Milieu de gamme    | 693456789, Nlongkak | Nlongkak 350k, Essos 280k, Mendong 500k  |
+| Tenant | Slug | Positionnement | Siège / Quartier | Salles (quartier / prix jour) |
+|---|---|---|---|---|
+| Événements Étoile | `etoile` | Intermédiaire/haut | 671234567, Bastos | Bastos 450k, Odza 250k, Mvan 600k |
+| Yaoundé Prestige | `prestige` | Haut de gamme | 677654321, Golf | Bastos 750k, Golf 900k, Warda 1,1M |
+| Mariage Malin | `malin` | Économique | 650123456, Nkoabang | Nkoabang 120k, Ekounou 180k, Etoudi 280k |
+| Nlongkak Réceptions | `nlongkak` | Milieu de gamme | 693456789, Nlongkak | Nlongkak 350k, Essos 280k, Mendong 500k |
 
 ## Identifiants de démonstration (tableau de bord)
 
-| Tenant              | Email                       | Mot de passe          |
-| ------------------- | --------------------------- | ---------------------- |
-| Événements Étoile   | `gestionnaire@etoile.com`   | `passe` en local uniquement |
-| Yaoundé Prestige    | `gestionnaire@prestige.com` | `passe` en local uniquement |
-| Mariage Malin       | `gestionnaire@malin.com`    | `passe` en local uniquement |
-| Nlongkak Réceptions | `gestionnaire@nlongkak.com` | `passe` en local uniquement |
-
-Ces mots de passe valent pour la base locale de développement, jamais pour un
-déploiement mis en ligne : une fois déployé, chaque mot de passe est changé
-via `data/seed/changer_mot_de_passe.py` (voir plus bas) et n'est plus `passe`.
+| Tenant | Email | Mot de passe |
+|---|---|---|
+| Événements Étoile | `gestionnaire@etoile.com` | `passe` |
+| Yaoundé Prestige | `gestionnaire@prestige.com` | `passe` |
+| Mariage Malin | `gestionnaire@malin.com` | `passe` |
+| Nlongkak Réceptions | `gestionnaire@nlongkak.com` | `passe` |
 
 Usage local/démo uniquement. Les mots de passe sont hachés en base (scrypt) —
 ces identifiants en clair ne vivent que dans ce fichier, pas ailleurs dans le
