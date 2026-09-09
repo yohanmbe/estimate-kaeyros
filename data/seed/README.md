@@ -20,9 +20,9 @@ sonorisation, personnel, logistique) et un modèle d'événement **Mariage**
 | Tenant | Slug | Positionnement | Siège / Quartier | Salles (quartier / prix jour) |
 |---|---|---|---|---|
 | Événements Étoile | `etoile` | Intermédiaire/haut | 671234567, Bastos | Bastos 450k, Odza 250k, Mvan 600k |
-| Yaoundé Prestige | `yaounde-prestige` | Haut de gamme | 677654321, Golf | Bastos 750k, Golf 900k, Warda 1,1M |
-| Mariage Malin | `mariage-malin` | Économique | 650123456, Nkoabang | Nkoabang 120k, Ekounou 180k, Etoudi 280k |
-| Nlongkak Réceptions | `nlongkak-receptions` | Milieu de gamme | 693456789, Nlongkak | Nlongkak 350k, Essos 280k, Mendong 500k |
+| Yaoundé Prestige | `prestige` | Haut de gamme | 677654321, Golf | Bastos 750k, Golf 900k, Warda 1,1M |
+| Mariage Malin | `malin` | Économique | 650123456, Nkoabang | Nkoabang 120k, Ekounou 180k, Etoudi 280k |
+| Nlongkak Réceptions | `nlongkak` | Milieu de gamme | 693456789, Nlongkak | Nlongkak 350k, Essos 280k, Mendong 500k |
 
 ## Identifiants de démonstration (tableau de bord)
 
