@@ -1,6 +1,6 @@
 [project]
 name = "estimate"
-version = "1.0.0"
+version = "0.1.0"
 description = "Un agent conversationnel de pre-cotation pour le secteur evenementiel"
 readme = "README.md"
 requires-python = ">=3.13"
