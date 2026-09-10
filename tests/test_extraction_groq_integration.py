@@ -1,5 +1,6 @@
 """Appels réels à l'API Groq : exclus par défaut, lancer avec -m integration"""
 import os
+from datetime import date
 
 import pytest
 
@@ -108,3 +109,90 @@ def test_reformulation_dune_information_manquante_ninvente_jamais_de_chiffre():
         assert not any(caractere.isdigit() for caractere in texte), (
             f"chiffre inventé dans la reformulation : {texte!r}"
         )
+
+
+@sans_cle_api
+def test_ville_du_cameroun_mal_orthographiee_est_reconnue():
+    """Cas observé en test réel : le modèle butait sur les villes du pays"""
+    extracteur = ExtracteurGroq()
+
+    besoin = extracteur.extraire_besoin(
+        "on fait ca a bafoussam, 200 personnes", Besoin(type_evenement="mariage")
+    )
+
+    assert besoin.ville == "Bafoussam"
+
+
+@sans_cle_api
+def test_vocabulaire_du_mariage_sans_le_mot_mariage():
+    """« la dot » désigne un mariage coutumier : le type ne doit pas rester vide"""
+    extracteur = ExtracteurGroq()
+
+    besoin = extracteur.extraire_besoin("nous préparons la dot de ma fille", Besoin())
+
+    assert besoin.type_evenement is not None
+    assert "mariage" in besoin.type_evenement.lower()
+
+
+@sans_cle_api
+def test_une_journee_en_toutes_lettres_vaut_un_jour():
+    extracteur = ExtracteurGroq()
+
+    besoin = extracteur.extraire_besoin(
+        "ce sera sur une seule journée", Besoin(type_evenement="mariage")
+    )
+
+    assert besoin.duree_jours == 1
+
+
+@sans_cle_api
+def test_ce_weekend_propose_deux_dates_sans_en_choisir_une():
+    """Le modèle ne tranche pas entre samedi et dimanche : c'est au prospect (D40)"""
+    extracteur = ExtracteurGroq()
+
+    besoin = extracteur.extraire_besoin(
+        "je veux organiser ça ce weekend", Besoin(type_evenement="mariage")
+    )
+
+    assert len(besoin.dates_possibles) >= 2
+    assert all(len(date) == 10 for date in besoin.dates_possibles)
+
+
+@sans_cle_api
+def test_date_relative_dun_seul_jour_est_resolue_et_signalee_a_confirmer():
+    extracteur = ExtracteurGroq()
+
+    besoin = extracteur.extraire_besoin(
+        "ce sera samedi prochain", Besoin(type_evenement="mariage")
+    )
+
+    assert besoin.date_evenement is not None
+    assert "date_evenement" in besoin.champs_a_confirmer
+
+
+@sans_cle_api
+def test_dernier_samedi_de_decembre_tombe_bien_un_samedi():
+    """Cas observé : le modèle proposait le jeudi 31 décembre, deux fois de suite"""
+    extracteur = ExtracteurGroq()
+
+    besoin = extracteur.extraire_besoin(
+        "je veux me marier le dernier samedi de decembre", Besoin()
+    )
+
+    # Soit le modèle a produit un samedi, soit le garde-fou a écarté sa date :
+    # dans les deux cas le prospect ne se voit jamais proposer un jeudi.
+    if besoin.date_evenement is not None:
+        assert date.fromisoformat(besoin.date_evenement).weekday() == 5
+    else:
+        assert besoin.champ_en_correction == "date_evenement"
+
+
+@sans_cle_api
+def test_prospect_qui_conteste_un_jour_ne_recoit_pas_la_meme_date():
+    """« non samedi » après une proposition ne doit pas renvoyer le même jeudi"""
+    extracteur = ExtracteurGroq()
+    besoin_avant = Besoin(type_evenement="mariage", date_evenement="2026-12-31")
+
+    besoin = extracteur.extraire_besoin("non samedi", besoin_avant)
+
+    assert besoin.date_evenement != "2026-12-31"

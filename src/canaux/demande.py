@@ -68,6 +68,31 @@ def actualiser_besoin(session: Session, tenant_id: str, demande_id: str, besoin:
     return resultat.rowcount == 1
 
 
+def enregistrer_complements(
+    session: Session,
+    tenant_id: str,
+    demande_id: str,
+    besoins_hors_catalogue: str | None,
+    commentaire: str | None,
+) -> bool:
+    """Enregistre ce que le prospect a écrit en clair, False si demande introuvable.
+
+    Même filtrage que actualiser_besoin : l'identifiant seul ne suffit pas,
+    le tenant est vérifié pour qu'une demande d'une autre entreprise reste
+    hors d'atteinte.
+    """
+    resultat = session.execute(
+        update(Demande)
+        .where(Demande.id == demande_id, Demande.tenant_id == tenant_id)
+        .values(
+            besoins_hors_catalogue=besoins_hors_catalogue,
+            commentaire=commentaire,
+        )
+    )
+    session.commit()
+    return resultat.rowcount == 1
+
+
 def emettre_devis(
     session: Session, tenant_id: str, demande_id: str, resultat: ResultatChiffrage
 ) -> DevisEmis | None:

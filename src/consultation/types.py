@@ -74,3 +74,7 @@ class DetailDemande:
     resume: LigneListeDemande
     besoin: dict
     devis: tuple[DevisConsulte, ...]
+    # Ce que le prospect a écrit lui-même avant de voir son estimation :
+    # tenu à part du besoin, qui ne contient que ce que l'extraction produit.
+    besoins_hors_catalogue: str | None = None
+    commentaire: str | None = None

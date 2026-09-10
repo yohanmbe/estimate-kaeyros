@@ -271,6 +271,12 @@ section[data-testid="stSidebar"] [data-testid="stSidebarUserContent"]{
   min-width:0;overflow-wrap:break-word;}
 .recap__valeur--manquant{color:#b6bccd;font-weight:500;}
 
+/* Texte écrit par le prospect : plusieurs lignes, à respecter telles quelles,
+   d'où le pre-wrap qui garde ses retours à la ligne sans laisser déborder
+   un mot trop long. */
+.texte-libre{padding:1rem 1.2rem;color:var(--encre);line-height:1.6;
+  white-space:pre-wrap;overflow-wrap:break-word;}
+
 /* ---------- État vide ---------- */
 .vide{background:var(--surface);border:1px dashed var(--trait);border-radius:16px;
   padding:2.4rem 1.8rem;text-align:center;}

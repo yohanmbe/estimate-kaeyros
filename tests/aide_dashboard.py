@@ -122,6 +122,8 @@ def creer_demande(
     telephone: str = "699001122",
     total_devis: int | None = None,
     consentement_contact: bool = True,
+    besoins_hors_catalogue: str | None = None,
+    commentaire: str | None = None,
 ) -> Demande:
     """Crée une demande, son prospect, et son devis si un total est demandé.
 
@@ -146,6 +148,8 @@ def creer_demande(
         prospect_id=prospect.id,
         etat=ETAT_COMPLETE if total_devis is not None else ETAT_EN_COURS,
         besoin=besoin if besoin is not None else BESOIN_MARIAGE_250,
+        besoins_hors_catalogue=besoins_hors_catalogue,
+        commentaire=commentaire,
         date_creation=date_creation,
     )
     session.add(demande)

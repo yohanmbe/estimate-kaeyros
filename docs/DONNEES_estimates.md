@@ -134,10 +134,24 @@ Une conversation en cours ou terminée.
 prospect_id est nullable : une conversation peut commencer avant que le
 prospect ait donné ses coordonnées.
 
+besoins_hors_catalogue et commentaire sont deux textes libres, facultatifs,
+écrits par le prospect juste avant de voir son estimation : ce dont il a
+besoin et que le catalogue ne propose pas, et un mot pour l'entreprise (voir
+D41). Ils ont leurs colonnes propres plutôt qu'une place dans le JSON besoin,
+qui ne contient que ce que l'extraction produit — mélanger le récit du
+prospect et la sortie du modèle rendrait l'un comme l'autre illisibles.
+
 Structure du besoin :
   type_evenement, date_evenement, ville, quartier_souhaite,
   nombre_invites, duree_jours, budget_declare,
-  prestations_souhaitees, prestations_exclues, ressources_choisies
+  prestations_souhaitees, prestations_exclues, ressources_choisies,
+  categories_sur_mesure, dates_possibles, champs_a_confirmer, champs_confirmes
+
+Les quatre derniers champs portent la conduite de la conversation plutôt que
+la description de l'événement : ce que le prospect a demandé à faire chiffrer
+par l'entreprise, les dates candidates d'une expression qui en couvre
+plusieurs (« ce weekend »), ce que l'extracteur a deviné au lieu de lu, et ce
+que le prospect a confirmé d'un clic (voir D40).
 
 ### devis
 - id, tenant_id, demande_id

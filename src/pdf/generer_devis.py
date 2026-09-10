@@ -57,7 +57,7 @@ def generer_pdf_devis(
     _dessiner_tableau_lignes(pdf, resultat.lignes)
     _dessiner_total(pdf, resultat.total)
     if resultat.categories_non_satisfaites:
-        _dessiner_categories_non_chiffrees(pdf, resultat)
+        _dessiner_categories_non_chiffrees(pdf, resultat, besoin)
     _dessiner_mention(pdf, tenant)
 
     return bytes(pdf.output())
@@ -241,17 +241,44 @@ def _dessiner_total(pdf: FPDF, total: int) -> None:
     pdf.set_xy(pdf.l_margin, y + HAUTEUR_BANDEAU_TOTAL_MM)
 
 
-def _dessiner_categories_non_chiffrees(pdf: FPDF, resultat: ResultatChiffrage) -> None:
-    """Signale les catégories que le catalogue ne couvre pas, sans rien inventer"""
-    manquantes = ", ".join(
-        libelle_categorie(categorie.categorie)
+def _dessiner_categories_non_chiffrees(
+    pdf: FPDF, resultat: ResultatChiffrage, besoin: Besoin
+) -> None:
+    """Signale ce qui n'est pas chiffré, en distinguant ce que le prospect a demandé.
+
+    Ranger une prestation demandée sur mesure sous « hors catalogue »
+    reviendrait à lui répondre que ce qu'il vient de réclamer n'existe pas.
+    """
+    sur_mesure = [
+        categorie.categorie
         for categorie in resultat.categories_non_satisfaites
-    )
-    pdf.ln(4)
-    _dessiner_encart(
-        pdf, f"Non chiffré, hors catalogue actuel : {manquantes}.",
-        COULEUR_FOND_ALERTE, COULEUR_TEXTE_ALERTE,
-    )
+        if categorie.categorie in besoin.categories_sur_mesure
+    ]
+    autres = [
+        categorie.categorie
+        for categorie in resultat.categories_non_satisfaites
+        if categorie.categorie not in besoin.categories_sur_mesure
+    ]
+
+    if sur_mesure:
+        pdf.ln(4)
+        _dessiner_encart(
+            pdf,
+            f"Proposition sur mesure à venir : {_enumerer_categories(sur_mesure)}. "
+            "Un commercial vous communiquera le prix.",
+            COULEUR_FOND_ALERTE, COULEUR_TEXTE_ALERTE,
+        )
+    if autres:
+        pdf.ln(4)
+        _dessiner_encart(
+            pdf, f"Non chiffré, hors catalogue actuel : {_enumerer_categories(autres)}.",
+            COULEUR_FOND_ALERTE, COULEUR_TEXTE_ALERTE,
+        )
+
+
+def _enumerer_categories(categories: list[str]) -> str:
+    """Liste de catégories dans leur libellé lisible"""
+    return ", ".join(libelle_categorie(categorie) for categorie in categories)
 
 
 def _dessiner_mention(pdf: FPDF, tenant: TenantContexte) -> None:

@@ -9,6 +9,7 @@ un devis complet se lit mal dans une modale, et un panneau intégré reste
 pilotable par les tests d'écran.
 """
 from datetime import date
+from html import escape
 
 import streamlit as st
 
@@ -22,6 +23,8 @@ from dashboard.composants import (
     cellule_ou_absente,
     date_francaise,
     etat_vide,
+    panneau,
+    pastille_categorie,
     pastille_etat,
     recapitulatif,
     resume_evenement,
@@ -215,7 +218,51 @@ def _afficher_detail(tenant: TenantContexte, demande_id: str) -> None:
     colonne_besoin.markdown(_recapitulatif_besoin(detail), unsafe_allow_html=True)
     colonne_prospect.markdown(_recapitulatif_prospect(detail), unsafe_allow_html=True)
 
+    _afficher_mots_du_prospect(detail)
+    _afficher_demandes_sur_mesure(detail)
     _afficher_devis(detail)
+
+
+def _afficher_demandes_sur_mesure(detail: DetailDemande) -> None:
+    """Les prestations que le prospect attend de vous, faute d'avoir trouvé au catalogue.
+
+    C'est une intention d'achat que le catalogue n'a pas su servir : elle
+    n'apparaît sur aucun devis, et se perdrait si l'écran ne la montrait pas.
+    """
+    categories = (detail.besoin or {}).get("categories_sur_mesure") or []
+    if not categories:
+        return
+    st.write("")
+    st.markdown(
+        panneau(
+            "Proposition sur mesure attendue",
+            accorder(len(categories), "prestation", "prestations"),
+            '<div class="texte-libre">'
+            + "".join(pastille_categorie(categorie) for categorie in categories)
+            + "</div>",
+        ),
+        unsafe_allow_html=True,
+    )
+
+
+def _afficher_mots_du_prospect(detail: DetailDemande) -> None:
+    """Ce que le prospect a écrit en clair, hors de tout ce que le LLM a extrait.
+
+    C'est la partie que le commercial lit en premier pour rappeler quelqu'un :
+    elle dit ce que le catalogue n'a pas su couvrir, dans les mots du prospect.
+    """
+    sections = [
+        ("Besoins hors catalogue", detail.besoins_hors_catalogue),
+        ("Mot du prospect", detail.commentaire),
+    ]
+    for titre, texte in sections:
+        if not texte:
+            continue
+        st.write("")
+        st.markdown(
+            panneau(titre, "", f'<div class="texte-libre">{escape(texte)}</div>'),
+            unsafe_allow_html=True,
+        )
 
 
 def _recapitulatif_besoin(detail: DetailDemande) -> str:

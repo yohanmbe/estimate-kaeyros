@@ -411,4 +411,93 @@ coordonnées du prospect (D26) restent utiles ailleurs — la demande en base
 et le tableau de bord du gestionnaire — seulement pas sur le document que
 le prospect tient déjà entre les mains.
 
+## D39 — Les salles se choisissent au plus proche, avec un devis sur mesure (2026-09-10)
+
+La capacité ne fait plus que filtrer : elle classe. Les salles qui peuvent
+accueillir tout le monde passent d'abord, de la plus juste à la plus large,
+plafonnées à trois. Demander 300 places ne fait donc plus défiler les salles
+de 800 tant qu'il existe des salles de 300. Quand aucune ne suffit, les plus
+grandes du catalogue sont montrées quand même, avec un badge disant leur
+capacité réelle. Dans les deux cas mal ajustés — rien d'assez grand, ou
+seulement des salles démesurées — un choix supplémentaire apparaît : demander
+une proposition sur mesure à l'entreprise.
+Raison : l'ancien seuil dur produisait deux comportements absurdes observés en
+test — 900 invités contre un catalogue plafonné à 500 émettait un devis *sans
+aucune salle* et sans rien dire, et 50 invités faisaient défiler cinq salles de
+100 sans hiérarchie. Le prospect doit voir ce que l'entreprise sait faire, même
+quand ça ne correspond pas exactement.
+Nuance D17 : le quartier trie toujours, mais en dernier, sur la liste déjà
+réduite. Aucune salle n'est jamais écartée pour son quartier.
+Contrepartie : une salle trop petite peut être choisie par le prospect. Elle
+est signalée en rouge, mais rien ne l'en empêche — c'est son événement.
+
+## D40 — Le LLM signale ses hypothèses, l'orchestrateur les fait confirmer (2026-09-10)
+
+Le besoin porte trois nouveaux champs : dates_possibles, champs_a_confirmer
+et champs_confirmes. L'extracteur y signale ce qu'il a *déduit* au lieu de lu
+— une date relative résolue, un type d'événement compris à partir d'un mot
+indirect. Une expression qui couvre plusieurs jours (« ce weekend ») remplit
+dates_possibles et laisse la date vide. C'est ensuite decider_prochaine_etape,
+du Python testé, qui décide de poser la question et le canal qui affiche les
+boutons.
+Raison : demander au LLM de poser lui-même la question violerait D01 et D04.
+Lui faire signaler son incertitude reste de l'extraction : il décrit ce qu'il
+a compris, y compris son doute. Le prospect voit le même résultat, mais la
+décision est reproductible et testable sans appeler un modèle.
+Une date que le modèle n'écrit pas au format canonique n'est jamais jetée :
+elle part à confirmer. La perdre en silence reviendrait à la redemander comme
+si le prospect n'avait rien dit.
+
+## D41 — Le prospect a le dernier mot avant l'estimation (2026-09-10)
+
+Une étape s'intercale entre les choix et le chiffrage : deux champs libres et
+facultatifs, ce dont le prospect a besoin et qu'il n'a pas trouvé au catalogue,
+et un mot pour l'entreprise. Ils sont stockés dans deux colonnes propres de la
+table demande, jamais dans le JSON besoin, et s'affichent dans le détail de la
+demande côté gestionnaire.
+Raison : le catalogue ne couvrira jamais tout, et c'est justement ce qu'il ne
+couvre pas qui intéresse le commercial. Le mettre dans le besoin mélangerait
+le récit du prospect avec ce que l'extraction produit ; en colonnes, c'est
+requêtable et ça ne se confond avec rien.
+Contrepartie : un tour de plus avant de voir le montant. Passer outre sans
+rien écrire reste possible en un clic.
+
+## D42 — Une salle hors gabarit s'affiche seule, jamais en liste (2026-09-10)
+
+Amende D39. La capacité borne désormais des deux côtés : une salle n'est
+proposée que si elle peut accueillir tout le monde **et** ne dépasse pas deux
+fois le nombre d'invités. Quand aucune salle du catalogue ne tient dans cette
+fourchette, une seule est montrée — la plus petite qui suffise, ou la plus
+grande du catalogue si aucune ne suffit — accompagnée du devis sur mesure et
+d'un badge disant d'où elle sort (« la plus petite de notre catalogue »).
+Raison : au premier test réel, un mariage de 50 invités s'est vu proposer des
+salles de 400, 600 et 800 places, présentées comme trois options équivalentes.
+Ce n'était pas un choix, c'était le catalogue entier. En montrer une seule dit
+la vérité : l'entreprise n'a rien à cette taille, le vrai choix est entre cette
+salle et un appel au commercial.
+Contrepartie : le prospect voit moins d'options quand le catalogue est mal
+ajusté. C'est précisément l'information utile.
+
+## D43 — Corriger une valeur ne redemande que cette valeur (2026-09-10)
+
+Le besoin porte `champ_en_correction`. Quand le prospect dit « non, je
+corrige », ce champ est vidé et marqué : tant qu'il n'a pas été redonné, c'est
+la seule chose qu'on lui demande, avant toute autre question ou confirmation.
+Raison : au premier test, dire « ce n'est pas la date » déclenchait une
+confirmation sur le type d'événement, puis la liste de tout ce qui manquait.
+Le prospect avait été précis, la réponse ne l'était pas.
+
+## D44 — Le jour nommé fait autorité sur la date produite (2026-09-10)
+
+`parser_besoin` reçoit le message du prospect. Si celui-ci nomme un seul jour
+de la semaine et que la date produite ne tombe pas ce jour-là, la date est
+écartée et repart en correction. Un message citant plusieurs jours (« samedi
+ou dimanche ») n'est pas tranchable et passe sans contrôle.
+Raison : « le dernier samedi de décembre » a produit le jeudi 31 décembre,
+proposé deux fois de suite. Le prompt le demande maintenant explicitement,
+mais un prompt n'est pas une garantie : le garde-fou, lui, est déterministe et
+testé sans appeler de modèle.
+Contrepartie : le prospect doit redonner sa date. Mieux vaut ça que de lui
+faire confirmer un jour qu'il vient de refuser.
+
 [Décisions suivantes à ajouter au fil du développement, avec la date.]

@@ -7,6 +7,7 @@ from datetime import datetime
 
 from src.presentation.montant import formater_montant
 from tests.aide_dashboard import (
+    BESOIN_MARIAGE_250,
     cliquer,
     creer_demande,
     installer_tenant,
@@ -177,3 +178,97 @@ def test_prospect_dun_nom_contenant_du_balisage_est_echappe(base_branchee):
     balisage = "\n".join(element.value for element in ecran.markdown)
     assert "<script>alert" not in balisage
     assert "&lt;script&gt;" in balisage
+
+
+def test_detail_affiche_les_mots_du_prospect(base_branchee):
+    """C'est ce que le commercial lit en premier pour rappeler quelqu'un"""
+    tenant = installer_tenant(base_branchee)
+    demande = creer_demande(
+        base_branchee,
+        tenant,
+        LE_15_JANVIER,
+        besoins_hors_catalogue="Un feu d'artifice de clôture",
+        commentaire="Merci de me rappeler le matin",
+    )
+    ecran = ouvrir_ecran(tenant.id)
+
+    ecran = cliquer(ecran, f"ouvrir-{demande.id}")
+
+    texte = texte_affiche(ecran)
+    assert "Besoins hors catalogue" in texte
+    assert "Un feu d'artifice de clôture" in texte
+    assert "Mot du prospect" in texte
+    assert "Merci de me rappeler le matin" in texte
+
+
+def test_demande_sans_mot_du_prospect_naffiche_aucune_section_vide(base_branchee):
+    tenant = installer_tenant(base_branchee)
+    demande = creer_demande(base_branchee, tenant, LE_15_JANVIER)
+    ecran = ouvrir_ecran(tenant.id)
+
+    ecran = cliquer(ecran, f"ouvrir-{demande.id}")
+
+    texte = texte_affiche(ecran)
+    assert "Besoins hors catalogue" not in texte
+    assert "Mot du prospect" not in texte
+
+
+def test_mot_du_prospect_dune_autre_entreprise_reste_invisible(base_branchee):
+    """Même filtrage que le reste du détail : le tenant_id, jamais l'identifiant seul"""
+    etoile = installer_tenant(base_branchee)
+    fanta = installer_tenant(base_branchee, slug="fanta", nom="Fanta Events")
+    demande_fanta = creer_demande(
+        base_branchee, fanta, LE_15_JANVIER, commentaire="Budget confidentiel de Fanta"
+    )
+
+    ecran = lancer_ecran_connecte(etoile.id, ecran="demandes")
+    ecran.session_state["demande_ouverte"] = demande_fanta.id
+    ecran = ecran.run()
+
+    assert "Budget confidentiel de Fanta" not in texte_affiche(ecran)
+
+
+def test_detail_affiche_les_prestations_demandees_sur_mesure(base_branchee):
+    """Une intention d'achat que le catalogue n'a pas servie : elle ne doit pas se perdre"""
+    tenant = installer_tenant(base_branchee)
+    demande = creer_demande(
+        base_branchee,
+        tenant,
+        LE_15_JANVIER,
+        besoin={**BESOIN_MARIAGE_250, "categories_sur_mesure": ["salle", "decoration"]},
+    )
+    ecran = ouvrir_ecran(tenant.id)
+
+    ecran = cliquer(ecran, f"ouvrir-{demande.id}")
+
+    texte = texte_affiche(ecran)
+    assert "Proposition sur mesure attendue" in texte
+    assert "Salle" in texte
+    assert "Décoration" in texte
+
+
+def test_demande_sans_sur_mesure_naffiche_pas_la_section(base_branchee):
+    tenant = installer_tenant(base_branchee)
+    demande = creer_demande(base_branchee, tenant, LE_15_JANVIER)
+    ecran = ouvrir_ecran(tenant.id)
+
+    ecran = cliquer(ecran, f"ouvrir-{demande.id}")
+
+    assert "Proposition sur mesure attendue" not in texte_affiche(ecran)
+
+
+def test_sur_mesure_dune_autre_entreprise_reste_invisible(base_branchee):
+    etoile = installer_tenant(base_branchee)
+    fanta = installer_tenant(base_branchee, slug="fanta", nom="Fanta Events")
+    demande_fanta = creer_demande(
+        base_branchee,
+        fanta,
+        LE_15_JANVIER,
+        besoin={**BESOIN_MARIAGE_250, "categories_sur_mesure": ["sonorisation"]},
+    )
+
+    ecran = lancer_ecran_connecte(etoile.id, ecran="demandes")
+    ecran.session_state["demande_ouverte"] = demande_fanta.id
+    ecran = ecran.run()
+
+    assert "Proposition sur mesure attendue" not in texte_affiche(ecran)

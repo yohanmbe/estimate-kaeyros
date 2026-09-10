@@ -121,6 +121,12 @@ class Demande(Base):
     prospect_id: Mapped[str | None] = mapped_column(ForeignKey("prospect.id"), index=True)
     etat: Mapped[str] = mapped_column(String(20), nullable=False, default=ETAT_EN_COURS)
     besoin: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
+    # Ce que le prospect écrit lui-même, en dehors de tout ce que le LLM
+    # extrait : ses colonnes propres, pour que le récit du prospect ne se
+    # mélange jamais au besoin structuré et reste requêtable par le tableau
+    # de bord.
+    besoins_hors_catalogue: Mapped[str | None] = mapped_column(Text)
+    commentaire: Mapped[str | None] = mapped_column(Text)
     date_creation: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
     date_modification: Mapped[datetime] = mapped_column(
         DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow
