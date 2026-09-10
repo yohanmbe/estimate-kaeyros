@@ -297,7 +297,7 @@ def _recapitulatif_prospect(detail: DetailDemande) -> str:
             ("Téléphone", prospect.telephone),
             ("Email", prospect.email),
             (
-                "Recontact accepté",
+                "Relance autorisée",
                 "Oui" if prospect.consentement_contact else "Non",
             ),
         ],

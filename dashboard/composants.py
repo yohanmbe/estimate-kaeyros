@@ -22,10 +22,6 @@ from src.presentation.montant import (
     libelle_devise,
 )
 
-# Même vocabulaire que le récapitulatif du PDF, pour qu'un champ vide se lise
-# pareil d'un bout à l'autre du produit.
-VALEUR_ABSENTE = "à préciser"
-
 LIBELLES_ETATS: dict[str, str] = {
     ETAT_EN_COURS: "Conversation en cours",
     ETAT_COMPLETE: "Estimation envoyée",
@@ -201,16 +197,17 @@ def etat_vide(titre: str, texte: str, code: str | None = None) -> str:
 def recapitulatif(titre: str, champs: list[tuple[str, str | None]]) -> str:
     """Bloc clé/valeur, de la même forme que le chat et le PDF.
 
-    Une valeur absente se lit « à préciser » : le besoin d'une conversation
-    interrompue est incomplet par nature, et le gestionnaire doit voir ce qui
-    manque plutôt qu'un blanc.
+    Une valeur absente se lit « — », le même tiret qu'ailleurs dans l'écran
+    pour un montant sans devis (voir cellule_montant) : le besoin d'une
+    conversation interrompue est incomplet par nature, sans qu'il faille le
+    dire en toutes lettres à chaque champ.
     """
     lignes = "".join(
         f'<div class="recap__ligne"><span class="recap__cle">{escape(cle)}</span>'
         + (
             f'<span class="recap__valeur">{escape(valeur)}</span>'
             if valeur
-            else f'<span class="recap__valeur recap__valeur--manquant">{VALEUR_ABSENTE}</span>'
+            else '<span class="recap__valeur recap__valeur--manquant">—</span>'
         )
         + "</div>"
         for cle, valeur in champs

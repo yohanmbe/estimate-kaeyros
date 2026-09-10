@@ -94,7 +94,7 @@ def test_detail_dune_demande_porte_le_besoin_et_les_coordonnees(base_branchee):
     assert "Demandé par" in texte
     assert "699001122" in texte
     assert "sylvie@example.cm" in texte
-    assert "Recontact accepté" in texte
+    assert "Relance autorisée" in texte
     # La date du besoin est stockee en ISO et affichee a la francaise
     assert "12/12/2026" in texte
 
