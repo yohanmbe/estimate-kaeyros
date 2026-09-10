@@ -13,10 +13,13 @@ from datetime import date
 import streamlit as st
 
 from dashboard.composants import (
+    CSS_LIGNES_DEMANDE,
     LIBELLES_ETATS,
+    PROPORTIONS_LIGNE_DEMANDE,
     accorder,
     cellule_double,
     cellule_montant,
+    cellule_ou_absente,
     date_francaise,
     etat_vide,
     pastille_etat,
@@ -44,53 +47,6 @@ ETATS_FILTRABLES: dict[str, str | None] = {
     LIBELLES_ETATS[ETAT_EN_COURS]: ETAT_EN_COURS,
     LIBELLES_ETATS[ETAT_COMPLETE]: ETAT_COMPLETE,
 }
-
-PROPORTIONS_COLONNES = (1.5, 2.3, 1.5, 1.5, 1.9, 1.3)
-
-CSS_TABLEAU = """
-<style>
-[class*="st-key-ligne-demande-"] {
-    padding: 0.65rem 0.9rem !important;
-}
-
-/* Préfixe [class*="st-key-ligne-demande-"] : ellipsis seulement dans les lignes,
-   pas dans l'en-tête. C'était le bug : sans ce préfixe, REÇUE LE se tronquait. */
-[class*="st-key-ligne-demande-"] div[data-testid="stColumn"] div[data-testid="stMarkdownContainer"] {
-    overflow: hidden;
-}
-[class*="st-key-ligne-demande-"] div[data-testid="stColumn"] div[data-testid="stMarkdownContainer"] div:not(.pastille),
-[class*="st-key-ligne-demande-"] div[data-testid="stColumn"] div[data-testid="stMarkdownContainer"] span:not(.pastille) {
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-/* Pastille : style.py met white-space:normal pour qu'elle puisse passer à la ligne
-   dans la sidebar. Dans les lignes du tableau la colonne est assez large,
-   on force nowrap pour éviter la coupure. */
-[class*="st-key-ligne-demande-"] .pastille {
-    white-space: nowrap !important;
-}
-
-/* Bouton : ce sélecteur est plus spécifique que celui de style.py (0-2-2 vs 0-1-2),
-   il reprend la main même face au !important de style.py. */
-[class*="st-key-ligne-demande-"] .stButton > button p {
-    white-space: nowrap !important;
-    word-break: keep-all !important;
-}
-[class*="st-key-ligne-demande-"] .pastille {
-    overflow: visible !important;
-}
-[class*="st-key-ligne-demande-"] .stButton > button p {
-    overflow: visible !important;
-    text-overflow: unset !important;
-}
-[class*="st-key-entetes-"] {
-    padding: 0.65rem 0.9rem !important;
-    background: var(--surface) !important;
-}
-</style>
-"""
 
 # Le canal est stocké en clair dans la base (voir DONNEES.md) ; le gestionnaire
 # lit le nom du service, pas celui de la bibliothèque qui le rend.
@@ -134,7 +90,7 @@ def _afficher_liste(tenant: TenantContexte) -> None:
         f'<div class="libelle-filtre">{accorder(len(demandes), "demande")}</div>',
         unsafe_allow_html=True,
     )
-    st.markdown(CSS_TABLEAU, unsafe_allow_html=True)
+    st.markdown(CSS_LIGNES_DEMANDE, unsafe_allow_html=True)
     _afficher_entetes_de_colonnes()
     for demande in demandes:
         _afficher_ligne(demande)
@@ -175,7 +131,7 @@ def _afficher_entetes_de_colonnes() -> None:
         ("", ""),
     )
     with st.container(key="entetes-demandes"):
-        colonnes = st.columns(PROPORTIONS_COLONNES, vertical_alignment="center")
+        colonnes = st.columns(PROPORTIONS_LIGNE_DEMANDE, vertical_alignment="center")
         for colonne, (entete, alignement) in zip(colonnes, entetes):
             colonne.markdown(
                 f'<div class="libelle-filtre{alignement}">{entete}</div>',
@@ -191,7 +147,7 @@ def _afficher_ligne(demande: LigneListeDemande) -> None:
     recollerait sinon l'état d'un bouton sur la mauvaise ligne.
     """
     with st.container(key=f"ligne-demande-{demande.id}"):
-        colonnes = st.columns(PROPORTIONS_COLONNES, vertical_alignment="center")
+        colonnes = st.columns(PROPORTIONS_LIGNE_DEMANDE, vertical_alignment="center")
         colonnes[0].markdown(
             cellule_double(
                 demande.date_creation.strftime("%d/%m/%Y"),
@@ -207,7 +163,7 @@ def _afficher_ligne(demande: LigneListeDemande) -> None:
             unsafe_allow_html=True,
         )
         colonnes[2].markdown(
-            cellule_double(date_francaise(demande.date_evenement) or "—"),
+            cellule_ou_absente(date_francaise(demande.date_evenement)),
             unsafe_allow_html=True,
         )
         colonnes[3].markdown(

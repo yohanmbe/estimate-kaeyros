@@ -48,6 +48,58 @@ VARIANTES_CATEGORIES: dict[str, str] = {
 
 HAUTEUR_BARRE_MINIMALE = 4
 
+# Reçue le, Événement, Date prévue, Total estimé, Statut, Ouvrir : partagées
+# entre la liste complète (dashboard/demandes.py) et l'aperçu du tableau de
+# bord, pour que les deux se lisent comme la même table plutôt que comme deux
+# tables qui se ressemblent à peu près.
+PROPORTIONS_LIGNE_DEMANDE = (1.5, 2.3, 1.5, 1.5, 1.9, 1.3)
+
+# Une ligne trop étroite pour son contenu coupe proprement avec une ellipse
+# plutôt que de déborder de sa boîte ou de passer sur deux lignes inégales :
+# préfixe [class*="st-key-ligne-demande-"] pour ne tronquer que les lignes,
+# jamais l'en-tête (« Reçue le » s'y tronquait avant ce préfixe).
+CSS_LIGNES_DEMANDE = """
+<style>
+[class*="st-key-ligne-demande-"] {
+    padding: 0.65rem 0.9rem !important;
+}
+[class*="st-key-ligne-demande-"] div[data-testid="stColumn"] div[data-testid="stMarkdownContainer"] {
+    overflow: hidden;
+}
+[class*="st-key-ligne-demande-"] div[data-testid="stColumn"] div[data-testid="stMarkdownContainer"] div:not(.pastille),
+[class*="st-key-ligne-demande-"] div[data-testid="stColumn"] div[data-testid="stMarkdownContainer"] span:not(.pastille) {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Pastille : style.py met white-space:normal pour qu'elle puisse passer à la ligne
+   dans la sidebar. Dans les lignes du tableau la colonne est assez large,
+   on force nowrap pour éviter la coupure. */
+[class*="st-key-ligne-demande-"] .pastille {
+    white-space: nowrap !important;
+}
+
+/* Bouton : ce sélecteur est plus spécifique que celui de style.py (0-2-2 vs 0-1-2),
+   il reprend la main même face au !important de style.py. */
+[class*="st-key-ligne-demande-"] .stButton > button p {
+    white-space: nowrap !important;
+    word-break: keep-all !important;
+}
+[class*="st-key-ligne-demande-"] .pastille {
+    overflow: visible !important;
+}
+[class*="st-key-ligne-demande-"] .stButton > button p {
+    overflow: visible !important;
+    text-overflow: unset !important;
+}
+[class*="st-key-entetes-"] {
+    padding: 0.65rem 0.9rem !important;
+    background: var(--surface) !important;
+}
+</style>
+"""
+
 
 def titre_ecran(titre: str, sous_titre: str) -> str:
     """Titre et sous-titre d'un écran"""
@@ -125,6 +177,12 @@ def pastille_categorie(categorie: str) -> str:
     )
 
 
+# Un même tiret discret pour toute valeur absente d'une cellule de tableau,
+# qu'il s'agisse d'un montant ou d'une simple date : deux styles différents
+# pour la même absence se lirait comme deux informations différentes.
+_CELLULE_ABSENTE = '<span class="table__secondaire">—</span>'
+
+
 def cellule_montant(montant: int | None, devise: str | None) -> str:
     """Montant aligné à droite avec sa devise en retrait, ou un tiret s'il n'y en a pas.
 
@@ -132,11 +190,18 @@ def cellule_montant(montant: int | None, devise: str | None) -> str:
     laisserait croire à une estimation gratuite.
     """
     if montant is None:
-        return '<span class="table__secondaire">—</span>'
+        return _CELLULE_ABSENTE
     return (
         f"{escape(formater_nombre(montant))}"
         f'<span class="table__devise">{escape(libelle_devise(devise))}</span>'
     )
+
+
+def cellule_ou_absente(valeur: str | None) -> str:
+    """Une valeur simple, ou le même tiret discret qu'un montant absent (voir cellule_montant)"""
+    if not valeur:
+        return _CELLULE_ABSENTE
+    return f'<div class="table__principal">{escape(valeur)}</div>'
 
 
 def cellule_double(principal: str, secondaire: str | None = None) -> str:

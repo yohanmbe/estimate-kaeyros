@@ -13,17 +13,20 @@ from datetime import date
 import streamlit as st
 
 from dashboard.composants import (
+    CSS_LIGNES_DEMANDE,
+    PROPORTIONS_LIGNE_DEMANDE,
+    accorder,
     bande_indicateur,
     carte_indicateur,
     carte_montant,
     carte_tranches,
     cellule_double,
     cellule_montant,
+    cellule_ou_absente,
+    date_francaise,
     etat_vide,
     pastille_etat,
-    panneau,
     resume_evenement,
-    tableau,
     titre_ecran,
 )
 from src.auth.types import UtilisateurContexte
@@ -129,7 +132,7 @@ def _afficher_indicateurs_complementaires(
 def _afficher_dernieres_demandes(
     dernieres: list[LigneListeDemande], tenant: TenantContexte, periode: Periode
 ) -> None:
-    """Les cinq dernières demandes, avec un passage vers la liste complète"""
+    """Les cinq dernières demandes, chacune ouvrable, avec un passage vers la liste complète"""
     st.write("")
     colonne_titre, colonne_lien = st.columns([3, 1], vertical_alignment="center")
     colonne_titre.markdown(
@@ -144,37 +147,78 @@ def _afficher_dernieres_demandes(
         st.markdown(_aucune_demande(tenant), unsafe_allow_html=True)
         return
 
-    lignes = [
-        [
+    st.markdown(
+        f'<div class="libelle-filtre">{accorder(len(dernieres), "demande")}</div>',
+        unsafe_allow_html=True,
+    )
+    st.markdown(CSS_LIGNES_DEMANDE, unsafe_allow_html=True)
+    _afficher_entetes_dernieres()
+    for demande in dernieres:
+        _afficher_ligne_derniere(demande)
+
+
+def _afficher_entetes_dernieres() -> None:
+    """Mêmes en-têtes, mêmes proportions et même style que dashboard/demandes.py :
+    cet aperçu doit se lire comme la même table, pas comme une variante.
+    """
+    entetes = (
+        ("Reçue le", ""),
+        ("Événement", ""),
+        ("Date prévue", ""),
+        ("Total estimé", " libelle-filtre--nb"),
+        ("Statut", ""),
+        ("", ""),
+    )
+    with st.container(key="entetes-dernieres-demandes"):
+        colonnes = st.columns(PROPORTIONS_LIGNE_DEMANDE, vertical_alignment="center")
+        for colonne, (entete, alignement) in zip(colonnes, entetes):
+            colonne.markdown(
+                f'<div class="libelle-filtre{alignement}">{entete}</div>',
+                unsafe_allow_html=True,
+            )
+
+
+def _afficher_ligne_derniere(demande: LigneListeDemande) -> None:
+    """Une demande par ligne, ouvrable comme depuis l'écran des demandes.
+
+    La clé du conteneur commence par « ligne-demande- », comme dans
+    dashboard/demandes.py : c'est ce préfixe que CSS_LIGNES_DEMANDE cible pour
+    tronquer proprement un texte trop long plutôt que de le laisser déborder
+    de sa boîte. Elle dérive de l'identifiant de la demande, jamais de son
+    rang, un changement de période réordonnant la liste.
+    """
+    with st.container(key=f"ligne-demande-{demande.id}"):
+        colonnes = st.columns(PROPORTIONS_LIGNE_DEMANDE, vertical_alignment="center")
+        colonnes[0].markdown(
             cellule_double(
                 demande.date_creation.strftime("%d/%m/%Y"),
-                demande.prospect.nom if demande.prospect else None,
+                demande.prospect.nom if demande.prospect else "Prospect inconnu",
             ),
+            unsafe_allow_html=True,
+        )
+        colonnes[1].markdown(
             cellule_double(
                 (demande.type_evenement or "Événement").capitalize(),
                 resume_evenement(demande) or None,
             ),
-            cellule_montant(demande.total_dernier_devis, demande.devise),
-            pastille_etat(demande.etat),
-        ]
-        for demande in dernieres
-    ]
-    st.markdown(
-        panneau(
-            "Demandes",
-            f"{len(dernieres)} affichées",
-            tableau(
-                [
-                    ("Reçue le", ""),
-                    ("Événement", ""),
-                    ("Total estimé", "table__nb"),
-                    ("Statut", ""),
-                ],
-                lignes,
-            ),
-        ),
-        unsafe_allow_html=True,
-    )
+            unsafe_allow_html=True,
+        )
+        colonnes[2].markdown(
+            cellule_ou_absente(date_francaise(demande.date_evenement)),
+            unsafe_allow_html=True,
+        )
+        colonnes[3].markdown(
+            f'<div class="table__nb table__principal">'
+            f"{cellule_montant(demande.total_dernier_devis, demande.devise)}</div>",
+            unsafe_allow_html=True,
+        )
+        colonnes[4].markdown(pastille_etat(demande.etat), unsafe_allow_html=True)
+        if colonnes[5].button(
+            "Ouvrir →", key=f"ouvrir-derniere-{demande.id}", use_container_width=True
+        ):
+            st.session_state.ecran = "demandes"
+            st.session_state.demande_ouverte = demande.id
+            st.rerun()
 
 
 def _aucune_demande(tenant: TenantContexte) -> str:
