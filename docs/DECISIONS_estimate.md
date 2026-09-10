@@ -500,4 +500,15 @@ testé sans appeler de modèle.
 Contrepartie : le prospect doit redonner sa date. Mieux vaut ça que de lui
 faire confirmer un jour qu'il vient de refuser.
 
+## D45 — Un champ de l'événement non précisé est absent du PDF (2026-09-10)
+
+Le récapitulatif « Votre événement » du PDF n'affiche plus « à préciser »
+pour un champ resté vide (le quartier, en pratique — voir D17, jamais
+obligatoire) : la ligne correspondante n'apparaît simplement pas.
+Raison : sur ce document, contrairement au récapitulatif de la barre
+latérale du chat en cours de conversation, il n'y a plus rien à réclamer au
+prospect — le devis qu'il tient est déjà chiffré. Marquer un champ comme
+manquant dessus suggérerait à tort qu'il doit encore fournir cette
+information.
+
 [Décisions suivantes à ajouter au fil du développement, avec la date.]

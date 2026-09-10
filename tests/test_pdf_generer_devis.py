@@ -148,6 +148,23 @@ def test_type_ville_et_quartier_saffichent_avec_une_majuscule_meme_extraits_en_m
     assert "bastos" not in texte
 
 
+def test_quartier_non_precise_est_absent_du_recapitulatif():
+    """Le quartier est le seul champ de l'événement facultatif (voir D17) :
+    absent, il ne doit pas apparaître comme une information manquante."""
+    besoin_sans_quartier = Besoin(
+        type_evenement="mariage",
+        date_evenement="2026-12-12",
+        ville="Yaoundé",
+        nombre_invites=50,
+        duree_jours=1,
+    )
+
+    texte = texte_du_pdf(generer_pdf_devis(resultat_mariage_300(), TENANT, besoin_sans_quartier))
+
+    assert "Quartier" not in texte
+    assert "à préciser" not in texte
+
+
 def test_nombre_dinvites_eleve_separe_les_milliers_pour_la_lisibilite():
     besoin_grand_evenement = Besoin(
         type_evenement="mariage",
