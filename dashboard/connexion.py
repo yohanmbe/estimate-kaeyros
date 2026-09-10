@@ -56,7 +56,7 @@ def afficher_connexion() -> None:
         st.rerun()
 
     st.markdown(
-        '<div class="pied-connexion">Pas encore de compte ? '
+        '<div class="pied-connexion">Un probléme avec votre compte ? '
         '<a href="https://kaeyros-analytics.com/fr/contact-us" target="_blank" '
         'rel="noopener">Contactez-nous</a></div>',
         unsafe_allow_html=True,

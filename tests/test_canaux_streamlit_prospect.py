@@ -40,6 +40,11 @@ MESSAGES_MARIAGE_300 = [
 ]
 
 SCENARIO_SANS_SALLE = "900 invités, salle insuffisante"
+SCENARIO_WEEKEND = "Ce weekend, samedi ou dimanche"
+SCENARIO_CINQUANTE = "50 invités, salles trop grandes"
+
+SAMEDI_LISIBLE = "samedi 12 septembre 2026"
+DIMANCHE_LISIBLE = "dimanche 13 septembre 2026"
 
 # L'écran sépare les milliers par des espaces insécables, écrits ici en clair
 TOTAL_MARIAGE_300 = "3 300 000 FCFA"
@@ -49,7 +54,13 @@ TOTAL_MARIAGE_300_SANS_SALLE = "2 850 000 FCFA"
 
 def creer_tenant_etoile(session: Session, actif: bool = True) -> Tenant:
     """Installe une entreprise cliente avec son catalogue et son modèle Mariage"""
-    tenant = Tenant(nom="Événements Étoile", slug="etoile", ville="Yaoundé", actif=actif)
+    tenant = Tenant(
+        nom="Événements Étoile",
+        slug="etoile",
+        ville="Yaoundé",
+        coordonnees="671234567, Bastos",
+        actif=actif,
+    )
     session.add(tenant)
     session.flush()
     session.add_all(
@@ -104,6 +115,13 @@ def texte_affiche(ecran: AppTest) -> str:
     return unescape("\n".join(element.value for element in ecran.markdown))
 
 
+def dernier_message_agent(ecran: AppTest) -> str:
+    """La derniere phrase prononcee par l'agent, sans le reste du fil"""
+    fil = texte_affiche(ecran)
+    debut = fil.rfind('<span class="bulle__auteur">Estimate</span>')
+    return fil[debut:].split("</div>")[0] if debut != -1 else ""
+
+
 def repondre(ecran: AppTest, messages: list[str]) -> AppTest:
     """Envoie les messages du prospect l'un après l'autre"""
     for message in messages:
@@ -115,6 +133,24 @@ def choisir_premiere_option(ecran: AppTest) -> AppTest:
     """Retient la première ressource proposée, tant qu'un choix est demandé"""
     while [bouton for bouton in ecran.button if bouton.label == "Choisir"]:
         ecran = [bouton for bouton in ecran.button if bouton.label == "Choisir"][0].click().run()
+    return ecran
+
+
+def passer_les_complements(ecran: AppTest) -> AppTest:
+    """Franchit le dernier formulaire avant l'estimation, sans rien y écrire"""
+    boutons = [bouton for bouton in ecran.button if bouton.key == "complements-soumettre"]
+    return boutons[0].click().run() if boutons else ecran
+
+
+def aller_jusqua_lestimation(ecran: AppTest) -> AppTest:
+    """Déroule la fin du parcours : les choix restants, puis les compléments libres"""
+    return passer_les_complements(choisir_premiere_option(ecran))
+
+
+def demander_tout_en_sur_mesure(ecran: AppTest) -> AppTest:
+    """Demande une proposition à l'entreprise tant qu'une catégorie en propose une"""
+    while [bouton for bouton in ecran.button if bouton.label == "Demander"]:
+        ecran = [bouton for bouton in ecran.button if bouton.label == "Demander"][0].click().run()
     return ecran
 
 
@@ -256,7 +292,7 @@ def test_salle_hors_du_quartier_souhaite_reste_proposee(base_branchee):
 def test_mariage_300_invites_bastos_affiche_le_total_de_lestimation(base_branchee):
     creer_tenant_etoile(base_branchee)
 
-    ecran = choisir_premiere_option(repondre(demarrer_conversation("etoile"), MESSAGES_MARIAGE_300))
+    ecran = aller_jusqua_lestimation(repondre(demarrer_conversation("etoile"), MESSAGES_MARIAGE_300))
 
     texte = texte_affiche(ecran)
     assert TOTAL_MARIAGE_300 in texte
@@ -266,7 +302,7 @@ def test_mariage_300_invites_bastos_affiche_le_total_de_lestimation(base_branche
 def test_estimation_affichee_propose_le_telechargement_du_pdf(base_branchee):
     creer_tenant_etoile(base_branchee)
 
-    ecran = choisir_premiere_option(repondre(demarrer_conversation("etoile"), MESSAGES_MARIAGE_300))
+    ecran = aller_jusqua_lestimation(repondre(demarrer_conversation("etoile"), MESSAGES_MARIAGE_300))
 
     boutons_telechargement = ecran.download_button
     assert len(boutons_telechargement) == 1
@@ -277,7 +313,7 @@ def test_message_envoye_apres_avoir_choisi_une_salle_ne_perd_pas_ce_choix(base_b
     """Le schéma JSON de l'extracteur n'inclut pas ressources_choisies : un
     message envoyé après un choix ne doit pas faire redemander ce choix."""
     creer_tenant_etoile(base_branchee)
-    ecran = choisir_premiere_option(repondre(demarrer_conversation("etoile"), MESSAGES_MARIAGE_300))
+    ecran = aller_jusqua_lestimation(repondre(demarrer_conversation("etoile"), MESSAGES_MARIAGE_300))
     assert TOTAL_MARIAGE_300 in texte_affiche(ecran)
 
     ecran = repondre(ecran, ["merci"])
@@ -320,7 +356,7 @@ def test_prospect_peut_refuser_une_categorie_plutot_que_choisir(base_branchee):
     ecran = bouton_refus.click().run()
     # Mobilier et restauration n'ont qu'un candidat chacun, mais restent à
     # trancher (rien n'entre au devis sans un choix explicite).
-    ecran = choisir_premiere_option(ecran)
+    ecran = aller_jusqua_lestimation(ecran)
 
     texte = texte_affiche(ecran)
     assert "Salle Bastos" not in texte
@@ -395,25 +431,45 @@ def test_bouton_jai_tout_ce_quil_me_faut_arrete_le_parcours_de_choix(base_branch
     assert "Choisissez votre restauration" in texte_affiche(ecran)
 
     bouton_stop = next(bouton for bouton in ecran.button if bouton.label == "J'ai tout ce qu'il me faut")
-    ecran = bouton_stop.click().run()
+    ecran = passer_les_complements(bouton_stop.click().run())
 
     texte = texte_affiche(ecran)
     assert "Choisissez votre restauration" not in texte
     assert "450\xa0000\xa0FCFA" in texte  # la salle choisie est bien chiffrée
-    assert "Non chiffré" not in texte  # exclue par choix, pas un trou du catalogue
+    # Exclue par choix du prospect : elle sort du modèle, on ne la lui reproche pas
+    assert "Non retenu" not in texte
 
 
-def test_aucune_salle_assez_grande_est_annoncee_sans_bloquer_le_reste(base_branchee):
+def ouvrir_scenario_sans_salle(base_branchee) -> AppTest:
+    """Amène l'écran à la question sur la salle, avec 900 invités et un catalogue plafonné à 500"""
     creer_tenant_etoile(base_branchee)
     ecran = demarrer_conversation("etoile")
-
     ecran = ecran.sidebar.selectbox[0].select(SCENARIO_SANS_SALLE).run()
-    ecran = repondre(ecran, ["Un mariage pour 900 invités", "Le 4 juillet 2026, sur deux jours"])
-    ecran = choisir_premiere_option(ecran)
+    return repondre(ecran, ["Un mariage pour 900 invités", "Le 4 juillet 2026, sur deux jours"])
+
+
+def test_aucune_salle_assez_grande_propose_les_plus_grandes_en_le_signalant(base_branchee):
+    """Ne rien montrer laisserait croire que l'entreprise n'a aucune salle"""
+    ecran = ouvrir_scenario_sans_salle(base_branchee)
 
     texte = texte_affiche(ecran)
-    assert "Aucune salle du catalogue ne peut accueillir 900 invités." in texte
-    assert TOTAL_MARIAGE_900_SANS_SALLE in texte
+    assert "Salle Mvan" in texte
+    assert "500 places" in texte
+    assert "la plus grande de notre catalogue" in texte
+    assert "proposition sur mesure" in texte
+    # Une seule salle proposée : la 300 n'a rien à faire là pour 900 invités
+    assert "Salle Bastos" not in texte
+
+
+def test_devis_sur_mesure_pour_la_salle_laisse_chiffrer_le_reste(base_branchee):
+    ecran = ouvrir_scenario_sans_salle(base_branchee)
+
+    bouton_sur_mesure = next(
+        bouton for bouton in ecran.button if bouton.key == "sur-mesure-choix-salle"
+    )
+    ecran = aller_jusqua_lestimation(bouton_sur_mesure.click().run())
+
+    assert TOTAL_MARIAGE_900_SANS_SALLE in texte_affiche(ecran)
 
 
 def test_conversation_menee_jusquau_devis_laisse_une_demande_et_un_devis_en_base(base_branchee):
@@ -422,7 +478,7 @@ def test_conversation_menee_jusquau_devis_laisse_une_demande_et_un_devis_en_base
     """
     creer_tenant_etoile(base_branchee)
 
-    choisir_premiere_option(repondre(demarrer_conversation("etoile"), MESSAGES_MARIAGE_300))
+    aller_jusqua_lestimation(repondre(demarrer_conversation("etoile"), MESSAGES_MARIAGE_300))
 
     demandes = base_branchee.query(Demande).all()
     devis = base_branchee.query(Devis).all()
@@ -440,7 +496,7 @@ def test_interactions_apres_le_devis_nen_emettent_pas_un_second(base_branchee):
     rester le même document, pas une estimation réécrite à chaque clic (D11).
     """
     creer_tenant_etoile(base_branchee)
-    ecran = choisir_premiere_option(
+    ecran = aller_jusqua_lestimation(
         repondre(demarrer_conversation("etoile"), MESSAGES_MARIAGE_300)
     )
 
@@ -475,9 +531,18 @@ def test_impasse_sans_aucune_ligne_nenregistre_pas_une_estimation_a_zero(base_br
     base_branchee.query(Ressource).filter(Ressource.tenant_id == tenant.id).delete()
     base_branchee.commit()
 
-    ecran = repondre(demarrer_conversation("etoile"), MESSAGES_MARIAGE_300)
+    # Catalogue vide : chaque catégorie ne propose plus qu'un devis sur mesure,
+    # qu'il faut demander pour que la conversation atteigne l'estimation.
+    ecran = passer_les_complements(
+        demander_tout_en_sur_mesure(
+            repondre(demarrer_conversation("etoile"), MESSAGES_MARIAGE_300)
+        )
+    )
 
-    assert "Aucune prestation disponible" in texte_affiche(ecran)
+    texte = texte_affiche(ecran)
+    assert "Aucune estimation possible en ligne" in texte
+    # Le prospect repart avec de quoi joindre l'entreprise, pas dans le vide
+    assert "671234567, Bastos" in texte
     assert base_branchee.query(Devis).all() == []
     assert base_branchee.query(Demande).one().etat == ETAT_EN_COURS
 
@@ -500,3 +565,183 @@ def test_changement_dentreprise_ouvre_une_demande_dans_le_bon_espace(base_branch
     assert {demande.tenant_id for demande in demandes} == {etoile.id, autre.id}
     demande_etoile = next(d for d in demandes if d.tenant_id == etoile.id)
     assert demande_etoile.besoin["type_evenement"] == "mariage"
+
+
+def ouvrir_scenario_weekend(base_branchee) -> "AppTest":
+    """Amène l'écran jusqu'à la question « samedi ou dimanche ? »"""
+    creer_tenant_etoile(base_branchee)
+    ecran = demarrer_conversation("etoile")
+    ecran = ecran.sidebar.selectbox[0].select(SCENARIO_WEEKEND).run()
+    return repondre(ecran, ["Un mariage ce weekend à Bastos, 300 personnes, une journée"])
+
+
+def test_ce_weekend_fait_choisir_entre_samedi_et_dimanche(base_branchee):
+    ecran = ouvrir_scenario_weekend(base_branchee)
+
+    texte = texte_affiche(ecran)
+    assert SAMEDI_LISIBLE in texte
+    assert DIMANCHE_LISIBLE in texte
+    libelles = [bouton.label for bouton in ecran.button]
+    assert SAMEDI_LISIBLE in libelles
+    assert DIMANCHE_LISIBLE in libelles
+
+
+def test_aucun_montant_naffiche_tant_que_la_date_nest_pas_tranchee(base_branchee):
+    ecran = ouvrir_scenario_weekend(base_branchee)
+
+    assert "FCFA" not in texte_affiche(ecran)
+
+
+def test_date_choisie_fait_avancer_la_conversation_vers_les_salles(base_branchee):
+    ecran = ouvrir_scenario_weekend(base_branchee)
+
+    bouton_samedi = next(b for b in ecran.button if b.label == SAMEDI_LISIBLE)
+    ecran = bouton_samedi.click().run()
+
+    texte = texte_affiche(ecran)
+    assert "Choisissez votre salle" in texte
+    assert DIMANCHE_LISIBLE not in [bouton.label for bouton in ecran.button]
+
+
+def test_date_choisie_est_enregistree_dans_la_demande(base_branchee):
+    """Changer de scénario rouvre une demande : c'est la dernière qui porte le choix"""
+    ecran = ouvrir_scenario_weekend(base_branchee)
+
+    next(b for b in ecran.button if b.label == SAMEDI_LISIBLE).click().run()
+
+    besoins = [demande.besoin for demande in base_branchee.query(Demande).all()]
+    assert any(
+        besoin["date_evenement"] == "2026-09-12"
+        and besoin["champs_confirmes"] == ["date_evenement"]
+        and besoin["dates_possibles"] == []
+        for besoin in besoins
+    )
+
+
+def test_message_de_choix_rappelle_invites_ville_et_duree(base_branchee):
+    """Le prospect a décrit son événement plusieurs messages plus haut"""
+    creer_tenant_etoile(base_branchee)
+
+    ecran = repondre(demarrer_conversation("etoile"), MESSAGES_MARIAGE_300)
+
+    texte = texte_affiche(ecran)
+    assert "300 invités" in texte
+    assert "Yaoundé" in texte
+    assert "1 jour(s)" in texte
+
+
+def test_prestation_non_retenue_nest_pas_annoncee_comme_absente_du_catalogue(base_branchee):
+    """La salle existait et convenait : dire le contraire trompe le prospect"""
+    creer_tenant_etoile(base_branchee)
+    ecran = repondre(demarrer_conversation("etoile"), MESSAGES_MARIAGE_300)
+
+    bouton_refus = next(bouton for bouton in ecran.button if bouton.key == "exclure-salle")
+    ecran = choisir_premiere_option(bouton_refus.click().run())
+
+    texte = texte_affiche(ecran)
+    assert "Aucune salle du catalogue ne peut accueillir" not in texte
+
+
+def test_devis_sur_mesure_affiche_les_coordonnees_de_lentreprise(base_branchee):
+    ecran = ouvrir_scenario_sans_salle(base_branchee)
+
+    bouton_sur_mesure = next(
+        bouton for bouton in ecran.button if bouton.key == "sur-mesure-choix-salle"
+    )
+    ecran = aller_jusqua_lestimation(bouton_sur_mesure.click().run())
+
+    texte = texte_affiche(ecran)
+    assert "Proposition sur mesure" in texte
+    assert "671234567, Bastos" in texte
+
+
+def remplir_les_complements(ecran: AppTest, besoins: str, mot: str) -> AppTest:
+    """Écrit dans le dernier formulaire avant l'estimation, puis le valide"""
+    champ_besoins = next(c for c in ecran.text_area if c.key == "complements-besoins")
+    champ_mot = next(c for c in ecran.text_area if c.key == "complements-commentaire")
+    champ_besoins.set_value(besoins)
+    champ_mot.set_value(mot)
+    bouton = next(b for b in ecran.button if b.key == "complements-soumettre")
+    return bouton.click().run()
+
+
+def test_complements_sont_demandes_avant_tout_montant(base_branchee):
+    creer_tenant_etoile(base_branchee)
+
+    ecran = choisir_premiere_option(
+        repondre(demarrer_conversation("etoile"), MESSAGES_MARIAGE_300)
+    )
+
+    assert "FCFA" not in texte_affiche(ecran)
+    assert [b for b in ecran.button if b.key == "complements-soumettre"]
+
+
+def test_complements_saisis_sont_enregistres_sur_la_demande(base_branchee):
+    creer_tenant_etoile(base_branchee)
+    ecran = choisir_premiere_option(
+        repondre(demarrer_conversation("etoile"), MESSAGES_MARIAGE_300)
+    )
+
+    ecran = remplir_les_complements(
+        ecran, "Un feu d'artifice", "Merci de me rappeler le matin"
+    )
+
+    demande = base_branchee.query(Demande).one()
+    assert demande.besoins_hors_catalogue == "Un feu d'artifice"
+    assert demande.commentaire == "Merci de me rappeler le matin"
+    assert TOTAL_MARIAGE_300 in texte_affiche(ecran)
+
+
+def test_complements_laisses_vides_ne_bloquent_pas_lestimation(base_branchee):
+    creer_tenant_etoile(base_branchee)
+
+    ecran = aller_jusqua_lestimation(
+        repondre(demarrer_conversation("etoile"), MESSAGES_MARIAGE_300)
+    )
+
+    demande = base_branchee.query(Demande).one()
+    assert demande.besoins_hors_catalogue is None
+    assert demande.commentaire is None
+    assert TOTAL_MARIAGE_300 in texte_affiche(ecran)
+
+
+def test_corriger_la_date_ne_redemande_que_la_date(base_branchee):
+    """Le prospect qui dit « ce n'est pas la date » ne doit pas se voir demander autre chose"""
+    ecran = ouvrir_scenario_weekend(base_branchee)
+
+    bouton_corriger = next(
+        bouton for bouton in ecran.button if bouton.key == "corriger-date_evenement"
+    )
+    ecran = bouton_corriger.click().run()
+
+    question = dernier_message_agent(ecran)
+    assert "la date" in question
+    assert "le nombre d'invités" not in question
+    assert "le type d'événement" not in question
+
+
+def test_bouton_darret_apparait_apres_une_demande_sur_mesure(base_branchee):
+    """Il avait disparu : seul un choix de ressource le faisait apparaître"""
+    ecran = ouvrir_scenario_sans_salle(base_branchee)
+    assert "J'ai tout ce qu'il me faut" not in [bouton.label for bouton in ecran.button]
+
+    bouton_sur_mesure = next(
+        bouton for bouton in ecran.button if bouton.key == "sur-mesure-choix-salle"
+    )
+    ecran = bouton_sur_mesure.click().run()
+
+    assert "J'ai tout ce qu'il me faut" in [bouton.label for bouton in ecran.button]
+
+
+def test_cinquante_invites_ne_voient_quune_salle_et_le_sur_mesure(base_branchee):
+    """Le cas du premier test réel, de bout en bout à l'écran"""
+    creer_tenant_etoile(base_branchee)
+    ecran = demarrer_conversation("etoile")
+    ecran = ecran.sidebar.selectbox[0].select(SCENARIO_CINQUANTE).run()
+    ecran = repondre(ecran, ["Un mariage pour 50 invités le 12 décembre 2026, une journée"])
+
+    texte = texte_affiche(ecran)
+    assert "Salle Bastos" in texte
+    assert "la plus petite de notre catalogue" in texte
+    assert "Salle Mvan" not in texte
+    assert "proposition sur mesure" in texte

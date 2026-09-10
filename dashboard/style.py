@@ -195,7 +195,11 @@ section[data-testid="stSidebar"] [data-testid="stSidebarUserContent"]{
    montant plutôt que déborder quand la colonne est vraiment trop étroite. */
 .table__nb{text-align:right;font-variant-numeric:tabular-nums;}
 .table__principal{font-weight:700;color:var(--encre);}
-.table__secondaire{font-size:.8rem;color:var(--gris);margin-top:.1rem;}
+/* font-weight:400 explicite : une valeur absente (un tiret) se pose parfois
+   dans une cellule elle-même marquée table__principal (montant, date), et
+   sans ce réglage elle hériterait son gras — le même tiret doit se lire
+   pareil partout, qu'il marque une date ou un montant manquant. */
+.table__secondaire{font-size:.8rem;font-weight:400;color:var(--gris);margin-top:.1rem;}
 .table__devise{font-size:.72rem;color:var(--gris-clair);font-weight:600;margin-left:.25rem;}
 
 /* Lignes de liste : chaque ligne est un st.container(key="ligne-...") plutôt
@@ -266,6 +270,12 @@ section[data-testid="stSidebar"] [data-testid="stSidebarUserContent"]{
 .recap__valeur{color:var(--bleu-fonce);font-weight:700;text-align:right;
   min-width:0;overflow-wrap:break-word;}
 .recap__valeur--manquant{color:#b6bccd;font-weight:500;}
+
+/* Texte écrit par le prospect : plusieurs lignes, à respecter telles quelles,
+   d'où le pre-wrap qui garde ses retours à la ligne sans laisser déborder
+   un mot trop long. */
+.texte-libre{padding:1rem 1.2rem;color:var(--encre);line-height:1.6;
+  white-space:pre-wrap;overflow-wrap:break-word;}
 
 /* ---------- État vide ---------- */
 .vide{background:var(--surface);border:1px dashed var(--trait);border-radius:16px;

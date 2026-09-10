@@ -24,6 +24,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from src.canaux.demande import (  # noqa: E402
     actualiser_besoin,
     emettre_devis,
+    enregistrer_complements,
     ouvrir_demande,
 )
 from src.canaux.prospect import enregistrer_prospect  # noqa: E402
@@ -44,20 +45,43 @@ from src.extraction.fabrique import (  # noqa: E402
 from src.extraction.interface import InterfaceLLM  # noqa: E402
 from src.extraction.mock import ExtracteurMock  # noqa: E402
 from src.extraction.types import Besoin  # noqa: E402
+from src.moteur.selection import (  # noqa: E402
+    AJUSTEMENT_SURDIMENSIONNEE,
+    AJUSTEMENT_TROP_PETITE,
+    qualifier_ajustement_salle,
+)
 from src.moteur.types import ResultatChiffrage, RessourceCatalogue  # noqa: E402
 from src.orchestration.choix_ressources import (  # noqa: E402
     identifier_categories_restant_a_choisir,
 )
+from src.orchestration.confirmations import (  # noqa: E402
+    CHAMP_DATE,
+    reporter_choix_du_prospect,
+)
 from src.orchestration.machine import decider_prochaine_etape  # noqa: E402
 from src.orchestration.parcours import chiffrer_pour_besoin, resoudre_candidats  # noqa: E402
-from src.orchestration.questions import formuler_question_besoin  # noqa: E402
+from src.orchestration.manques import (  # noqa: E402
+    MOTIF_HORS_CATALOGUE,
+    MOTIF_SUR_MESURE,
+    regrouper_manques_par_motif,
+)
+from src.orchestration.questions import (  # noqa: E402
+    LIBELLES_CHAMPS,
+    enumerer,
+    formuler_question_besoin,
+    formuler_question_choix,
+    formuler_question_confirmation,
+)
 from src.orchestration.types import (  # noqa: E402
     Decision,
     PassageChiffrage,
     QuestionBesoin,
     QuestionChoixRessources,
+    QuestionComplements,
+    QuestionConfirmation,
 )
 from src.pdf.generer_devis import generer_pdf_devis  # noqa: E402
+from src.presentation.dates import formater_date_lisible  # noqa: E402
 from src.presentation.montant import formater_montant  # noqa: E402
 
 NOM_MODELE_EVENEMENT = "Mariage"
@@ -73,6 +97,14 @@ FORMATS_LOGO_ACCEPTES = {".svg": "image/svg+xml", ".png": "image/png"}
 
 AGENT = "agent"
 PROSPECT = "prospect"
+
+# Une salle hors gabarit n'est là que faute de mieux : le badge dit d'où elle
+# sort, plutôt que de laisser le prospect deviner pourquoi on lui propose une
+# salle de 400 places pour 50 invités.
+MENTIONS_AJUSTEMENT = {
+    AJUSTEMENT_TROP_PETITE: "la plus grande de notre catalogue",
+    AJUSTEMENT_SURDIMENSIONNEE: "la plus petite de notre catalogue",
+}
 
 MESSAGES_ACCES_REFUSE = {
     "slug_absent": (
@@ -132,6 +164,30 @@ SCENARIOS_DEMONSTRATION: dict[str, list[Besoin]] = {
             quartier_souhaite="Bastos",
             nombre_invites=900,
             duree_jours=2,
+        ),
+    ],
+    # « Ce weekend » ne désigne pas une date mais deux : l'extracteur les
+    # propose toutes les deux et laisse date_evenement vide, c'est le prospect
+    # qui tranche d'un clic (voir orchestration/confirmations.py).
+    # Un petit mariage face à un catalogue de grandes salles : le prospect ne
+    # doit voir que la plus petite, et le devis sur mesure à côté.
+    "50 invités, salles trop grandes": [
+        Besoin(
+            type_evenement="mariage",
+            date_evenement="2026-12-12",
+            ville="Yaoundé",
+            nombre_invites=50,
+            duree_jours=1,
+        ),
+    ],
+    "Ce weekend, samedi ou dimanche": [
+        Besoin(
+            type_evenement="mariage",
+            ville="Yaoundé",
+            quartier_souhaite="Bastos",
+            nombre_invites=300,
+            duree_jours=1,
+            dates_possibles=("2026-09-12", "2026-09-13"),
         ),
     ],
 }
@@ -268,6 +324,8 @@ FEUILLE_DE_STYLE = """
   border-radius:999px;white-space:nowrap;font-weight:600;}
 .badge--neutre{background:#eef0f8;color:var(--gris);}
 .badge--quartier{background:var(--orange-pale-vif);color:var(--orange-texte);font-weight:700;}
+/* Capacité inférieure au nombre d'invités : la salle n'est là que faute de mieux */
+.badge--alerte{background:#fdecec;color:#b42318;font-weight:700;}
 
 .devis{background:var(--surface);border:1px solid var(--trait);border-top:4px solid var(--orange);
   border-radius:20px;overflow:hidden;box-shadow:0 12px 34px rgba(16,19,34,.10);margin-top:.7rem;}
@@ -425,7 +483,14 @@ def _oublier_conversation() -> None:
     entreprise à la demande d'une autre, ce qui n'est pas un défaut d'affichage
     mais une fuite entre locataires.
     """
-    for cle in ("besoin", "prospect", "demande", "empreinte_devis", "resultat_devis"):
+    for cle in (
+        "besoin",
+        "prospect",
+        "demande",
+        "empreinte_devis",
+        "resultat_devis",
+        "complements_fournis",
+    ):
         st.session_state.pop(cle, None)
 
 
@@ -545,7 +610,9 @@ def _decider() -> Decision:
     """Recalcule la décision courante à partir du besoin et du catalogue"""
     besoin = st.session_state.besoin
     candidats = resoudre_candidats(besoin, st.session_state.catalogue, st.session_state.modele)
-    return decider_prochaine_etape(besoin, candidats)
+    return decider_prochaine_etape(
+        besoin, candidats, st.session_state.get("complements_fournis", False)
+    )
 
 
 def _traiter_message_prospect(message: str) -> None:
@@ -565,14 +632,7 @@ def _traiter_message_prospect(message: str) -> None:
     )
     besoin_avant = st.session_state.besoin
     besoin_extrait = st.session_state.extracteur.extraire_besoin(message, besoin_avant)
-    # ressources_choisies n'existe pas dans le schéma JSON de l'extracteur : ce
-    # champ n'est jamais lu ni écrit par le LLM (D04), seulement par les clics
-    # du prospect. Sans cette ligne, le premier message envoyé après un choix
-    # de ressource l'effacerait silencieusement, puisque le Besoin reconstruit
-    # par l'extracteur repart toujours d'une liste vide.
-    _remplacer_besoin(
-        replace(besoin_extrait, ressources_choisies=besoin_avant.ressources_choisies)
-    )
+    _remplacer_besoin(reporter_choix_du_prospect(besoin_extrait, besoin_avant))
     _repondre()
     espace_frappe.empty()
 
@@ -603,6 +663,91 @@ def _enregistrer_choix(ressource: RessourceCatalogue) -> None:
         replace(besoin, ressources_choisies=besoin.ressources_choisies + (ressource.id,))
     )
     st.session_state.historique.append((PROSPECT, f"Je retiens : {ressource.nom}"))
+    _repondre()
+
+
+def _confirmer_hypothese(champ: str, valeur: str) -> None:
+    """Le prospect valide l'hypothèse : elle devient une donnée, et ne sera plus redemandée"""
+    besoin = st.session_state.besoin
+    # La valeur n'est écrite que si le champ était vide — le cas de « ce
+    # weekend », où le prospect tranche entre deux dates. Une confirmation
+    # simple ne réécrit rien : la valeur est déjà là, et la recopier depuis le
+    # bouton remettrait du texte dans un champ entier comme nombre_invites.
+    valeur_a_ecrire = {} if getattr(besoin, champ) is not None else {champ: valeur}
+    _remplacer_besoin(
+        replace(
+            besoin,
+            **valeur_a_ecrire,
+            dates_possibles=() if champ == CHAMP_DATE else besoin.dates_possibles,
+            champs_a_confirmer=tuple(c for c in besoin.champs_a_confirmer if c != champ),
+            champs_confirmes=besoin.champs_confirmes + (champ,),
+        )
+    )
+    st.session_state.historique.append((PROSPECT, f"Oui : {_valeur_affichee(champ, valeur)}"))
+    _repondre()
+
+
+def _corriger_hypothese(champ: str) -> None:
+    """Le prospect dément l'hypothèse : ce champ, et lui seul, lui est redemandé"""
+    besoin = st.session_state.besoin
+    _remplacer_besoin(
+        replace(
+            besoin,
+            **{champ: None},
+            dates_possibles=() if champ == CHAMP_DATE else besoin.dates_possibles,
+            champs_a_confirmer=tuple(c for c in besoin.champs_a_confirmer if c != champ),
+            champ_en_correction=champ,
+        )
+    )
+    st.session_state.historique.append(
+        (PROSPECT, f"Non, ce n'est pas {LIBELLES_CHAMPS.get(champ, champ)}")
+    )
+    _repondre()
+
+
+def _enregistrer_complements(besoins_hors_catalogue: str, commentaire: str) -> None:
+    """Range les deux textes libres sur la demande, puis débloque le chiffrage.
+
+    Les deux champs sont facultatifs : passer outre sans rien écrire est une
+    réponse valable, elle marque simplement l'étape comme franchie.
+    """
+    besoins = besoins_hors_catalogue.strip() or None
+    mot = commentaire.strip() or None
+    with ouvrir_session() as session:
+        enregistrer_complements(
+            session,
+            st.session_state.tenant.id,
+            st.session_state.demande.id,
+            besoins,
+            mot,
+        )
+    st.session_state.complements_fournis = True
+    st.session_state.historique.append(
+        (PROSPECT, _resume_complements(besoins, mot))
+    )
+    _repondre()
+
+
+def _resume_complements(besoins: str | None, commentaire: str | None) -> str:
+    """Ce qui apparaît dans le fil après l'envoi du formulaire"""
+    if besoins is None and commentaire is None:
+        return "Rien à ajouter, montrez-moi l'estimation."
+    ajouts = [texte for texte in (besoins, commentaire) if texte is not None]
+    return " ".join(ajouts)
+
+
+def _demander_devis_sur_mesure(categorie: str) -> None:
+    """Le prospect veut cette prestation, mais chiffrée par l'entreprise plutôt qu'au catalogue"""
+    besoin = st.session_state.besoin
+    _remplacer_besoin(
+        replace(besoin, categories_sur_mesure=besoin.categories_sur_mesure + (categorie,))
+    )
+    st.session_state.historique.append(
+        (
+            PROSPECT,
+            f"Je veux une proposition sur mesure pour {libelle_categorie(categorie)}",
+        )
+    )
     _repondre()
 
 
@@ -652,10 +797,23 @@ def _formuler_reponse(decision: Decision) -> str:
     if isinstance(decision, QuestionBesoin):
         contenu = formuler_question_besoin(decision.champs_manquants)
         return st.session_state.extracteur.reformuler(contenu)
+    if isinstance(decision, QuestionConfirmation):
+        # Pas de reformulation : la question porte une valeur exacte, et le
+        # modèle a déjà été pris à réécrire des nombres qu'on ne lui avait
+        # pas donnés (voir contient_un_nombre_invente).
+        return formuler_question_confirmation(decision.champ, decision.valeurs_proposees)
     if isinstance(decision, QuestionChoixRessources):
+        return formuler_question_choix(
+            decision.categorie,
+            len(decision.candidats),
+            st.session_state.besoin,
+            decision.devis_sur_mesure_possible,
+        )
+    if isinstance(decision, QuestionComplements):
         return (
-            f"Plusieurs options de {libelle_categorie(decision.categorie)} "
-            "conviennent à votre événement. Laquelle retenez-vous ?"
+            "Vos choix sont faits. Avant de vous montrer l'estimation : "
+            "vous manque-t-il quelque chose que vous n'avez pas trouvé ici, "
+            "ou voulez-vous laisser un mot à l'entreprise ?"
         )
     return "J'ai tout ce qu'il me faut. Voici votre estimation."
 
@@ -675,8 +833,13 @@ def _afficher_entete(tenant: TenantContexte) -> None:
 
 
 def _afficher_etapes(decision: Decision) -> None:
-    """Repère de progression : besoin, choix, estimation"""
-    if isinstance(decision, QuestionBesoin):
+    """Repère de progression : besoin, choix, estimation.
+
+    Confirmer une hypothèse fait toujours partie de la description du besoin,
+    pas de l'estimation : le prospect ne doit pas voir la barre sauter à la
+    dernière étape pour répondre « oui, c'est bien un mariage ».
+    """
+    if isinstance(decision, (QuestionBesoin, QuestionConfirmation)):
         rang_actif = 0
     elif isinstance(decision, QuestionChoixRessources):
         rang_actif = 1
@@ -714,11 +877,73 @@ def _afficher_fil() -> None:
 
 
 def _afficher_suite(decision: Decision, tenant: TenantContexte) -> None:
-    """Affiche ce que la décision appelle : un choix à faire, ou l'estimation"""
-    if isinstance(decision, QuestionChoixRessources):
+    """Affiche ce que la décision appelle : une confirmation, un choix à faire, ou l'estimation"""
+    if isinstance(decision, QuestionConfirmation):
+        _afficher_confirmation(decision)
+    elif isinstance(decision, QuestionChoixRessources):
         _afficher_options(decision)
+    elif isinstance(decision, QuestionComplements):
+        _afficher_complements(tenant)
     elif isinstance(decision, PassageChiffrage):
         _afficher_devis(_chiffrer_puis_figer(), tenant)
+
+
+def _afficher_complements(tenant: TenantContexte) -> None:
+    """Dernier tour de parole avant l'estimation : ce qui manque, et un mot pour l'entreprise"""
+    st.markdown(
+        '<p class="invite">Avant votre estimation, souhaitez-vous ajouter quelque chose ?</p>',
+        unsafe_allow_html=True,
+    )
+    with st.form("formulaire_complements"):
+        besoins_hors_catalogue = st.text_area(
+            "Ce dont vous avez besoin et que vous n'avez pas trouvé ici",
+            key="complements-besoins",
+            placeholder="Un feu d'artifice, un traiteur végétarien…",
+        )
+        commentaire = st.text_area(
+            f"Un mot pour {tenant.nom} (facultatif)",
+            key="complements-commentaire",
+            placeholder="Une précision, une contrainte, une question…",
+        )
+        soumis = st.form_submit_button(
+            "Voir mon estimation", key="complements-soumettre", type="primary"
+        )
+
+    if soumis:
+        _enregistrer_complements(besoins_hors_catalogue, commentaire)
+        st.rerun()
+
+
+def _afficher_confirmation(decision: QuestionConfirmation) -> None:
+    """Fait trancher une hypothèse de l'extracteur, d'un clic plutôt qu'en réécrivant tout"""
+    colonnes = st.columns(len(decision.valeurs_proposees) + 1)
+    for colonne, valeur in zip(colonnes, decision.valeurs_proposees):
+        libelle = (
+            "Oui, c'est bien ça"
+            if len(decision.valeurs_proposees) == 1
+            else _valeur_affichee(decision.champ, valeur)
+        )
+        if colonne.button(
+            libelle,
+            key=f"confirmer-{decision.champ}-{valeur}",
+            type="primary",
+            use_container_width=True,
+        ):
+            _confirmer_hypothese(decision.champ, valeur)
+            st.rerun()
+
+    if colonnes[-1].button(
+        "Non, je corrige",
+        key=f"corriger-{decision.champ}",
+        use_container_width=True,
+    ):
+        _corriger_hypothese(decision.champ)
+        st.rerun()
+
+
+def _valeur_affichee(champ: str, valeur: str) -> str:
+    """Valeur telle que le prospect la lit sur le bouton"""
+    return formater_date_lisible(valeur) if champ == "date_evenement" else valeur
 
 
 def _chiffrer_puis_figer() -> ResultatChiffrage:
@@ -755,6 +980,33 @@ def _chiffrer_puis_figer() -> ResultatChiffrage:
     return resultat
 
 
+def _a_deja_decide(besoin: Besoin) -> bool:
+    """Vrai dès que le prospect a tranché quelque chose, de quelque manière que ce soit"""
+    return bool(
+        besoin.ressources_choisies
+        or besoin.prestations_exclues
+        or besoin.categories_sur_mesure
+    )
+
+
+def _afficher_devis_sur_mesure(categorie: str) -> None:
+    """Propose de laisser l'entreprise chiffrer elle-même, quand le catalogue ne suit pas"""
+    with st.container(key=f"sur-mesure-{categorie}"):
+        colonne_infos, colonne_action = st.columns([3, 1], vertical_alignment="center")
+        colonne_infos.markdown(
+            '<div class="option__nom">Demander une proposition sur mesure</div>'
+            '<div class="option__detail">Aucune option ci-dessus ne correspond vraiment '
+            "à votre événement ? Un commercial de l'entreprise étudiera votre demande "
+            "et vous proposera un prix adapté.</div>",
+            unsafe_allow_html=True,
+        )
+        if colonne_action.button(
+            "Demander", key=f"sur-mesure-choix-{categorie}", use_container_width=True
+        ):
+            _demander_devis_sur_mesure(categorie)
+            st.rerun()
+
+
 def _afficher_options(decision: QuestionChoixRessources) -> None:
     """Présente les ressources candidates, le prospect tranche (D03) — ou n'en veut aucune"""
     st.markdown(
@@ -774,14 +1026,16 @@ def _afficher_options(decision: QuestionChoixRessources) -> None:
                 _enregistrer_choix(candidat)
                 st.rerun()
 
-    # « J'ai tout ce qu'il me faut » n'apparaît qu'après un premier choix
-    # effectif : sinon rien ne distingue une catégorie non choisie (ex. la
-    # salle) d'une catégorie sans choix à faire (ex. la logistique, à
-    # candidat unique) — l'estimation contiendrait des lignes que le
-    # prospect n'a jamais validées lui-même.
-    a_deja_choisi_une_ressource = bool(st.session_state.besoin.ressources_choisies)
+    if decision.devis_sur_mesure_possible:
+        _afficher_devis_sur_mesure(decision.categorie)
+
+    # « J'ai tout ce qu'il me faut » n'apparaît qu'une fois le prospect entré
+    # dans le parcours : retenir une ressource, en refuser une, ou demander
+    # une proposition sur mesure sont trois façons de décider. Le limiter aux
+    # seules ressources retenues le faisait disparaître pour qui n'avait
+    # demandé que du sur mesure.
     colonne_refus, colonne_fin = (
-        st.columns(2) if a_deja_choisi_une_ressource else (st.container(), None)
+        st.columns(2) if _a_deja_decide(st.session_state.besoin) else (st.container(), None)
     )
     if colonne_refus.button(
         f"Je ne veux pas de {libelle_categorie(decision.categorie)}",
@@ -812,16 +1066,25 @@ def _carte_option(ressource: RessourceCatalogue, quartier_souhaite: str | None) 
 
 
 def _badges_option(ressource: RessourceCatalogue, quartier_souhaite: str | None) -> str:
-    """Repères d'une salle : capacité et quartier.
+    """Repères d'une salle : capacité, ajustement à l'événement, et quartier.
 
     Une salle d'un autre quartier est proposée, jamais écartée (D17) : le
-    badge dit lequel, pour que la liste reste lisible.
+    badge dit lequel, pour que la liste reste lisible. Une salle hors gabarit
+    n'apparaît que faute de mieux : le badge dit d'où elle sort, sinon le
+    prospect croit qu'elle a été retenue parce qu'elle convient.
     """
-    capacite = ressource.attributs.get("capacite")
+    places = ressource.attributs.get("capacite")
     quartier = ressource.attributs.get("quartier")
+    nombre_invites = st.session_state.besoin.nombre_invites
     badges = []
-    if capacite is not None:
-        badges.append(f'<span class="badge badge--neutre">{capacite} places</span>')
+    if places is not None:
+        badges.append(f'<span class="badge badge--neutre">{places} places</span>')
+    if places is not None and nombre_invites is not None:
+        mention = MENTIONS_AJUSTEMENT.get(
+            qualifier_ajustement_salle(ressource, nombre_invites)
+        )
+        if mention is not None:
+            badges.append(f'<span class="badge badge--alerte">{mention}</span>')
     if quartier is not None:
         classe = "badge--quartier" if quartier == quartier_souhaite else "badge--neutre"
         badges.append(f'<span class="badge {classe}">{escape(str(quartier))}</span>')
@@ -832,7 +1095,7 @@ def _afficher_devis(resultat: ResultatChiffrage, tenant: TenantContexte) -> None
     """Présente l'estimation, ou explique pourquoi elle ne peut pas être établie"""
     besoin = st.session_state.besoin
     if not resultat.lignes:
-        _afficher_impasse(resultat)
+        _afficher_impasse(resultat, tenant)
         return
 
     lignes = "".join(
@@ -868,7 +1131,7 @@ def _afficher_devis(resultat: ResultatChiffrage, tenant: TenantContexte) -> None
     )
     _afficher_bouton_telechargement(resultat, tenant, besoin)
 
-    _afficher_categories_non_satisfaites(resultat)
+    _afficher_categories_non_satisfaites(resultat, tenant)
     _afficher_alerte_budget(resultat, besoin)
 
 
@@ -878,46 +1141,77 @@ def _afficher_bouton_telechargement(
     """Bouton de téléchargement du devis en PDF, mis en forme par src/pdf (D14)"""
     st.download_button(
         "Télécharger le PDF",
-        data=generer_pdf_devis(resultat, tenant, besoin, st.session_state.prospect),
+        data=generer_pdf_devis(resultat, tenant, besoin),
         file_name=f"devis-{tenant.slug}.pdf",
         mime="application/pdf",
         key="telecharger-pdf",
     )
 
 
-def _afficher_impasse(resultat: ResultatChiffrage) -> None:
+def _afficher_impasse(resultat: ResultatChiffrage, tenant: TenantContexte) -> None:
     """Aucune ligne chiffrable : on l'annonce, on n'affiche pas un total à zéro"""
     _afficher_panneau(
         "alerte",
-        "Aucune prestation disponible pour cette demande",
-        "Aucune ressource du catalogue ne correspond à votre événement. "
-        "Un conseiller peut vous répondre directement : laissez-lui vos coordonnées "
-        "dans la conversation.",
+        "Aucune estimation possible en ligne pour cette demande",
+        f"Rien au catalogue de {escape(tenant.nom)} ne correspond à votre événement, "
+        "il n'y a donc aucun montant à vous donner ici. Un commercial peut étudier "
+        f"votre demande et vous faire une proposition. {_phrase_contact(tenant)}",
     )
-    _afficher_categories_non_satisfaites(resultat)
+    _afficher_categories_non_satisfaites(resultat, tenant)
 
 
-def _afficher_categories_non_satisfaites(resultat: ResultatChiffrage) -> None:
-    """Annonce les catégories que le catalogue ne couvre pas, sans rien inventer"""
+def _afficher_categories_non_satisfaites(
+    resultat: ResultatChiffrage, tenant: TenantContexte
+) -> None:
+    """Annonce les prestations absentes de l'estimation, chacune avec sa vraie raison"""
     if not resultat.categories_non_satisfaites:
         return
 
     besoin = st.session_state.besoin
-    manquantes = [
-        libelle_categorie(categorie.categorie)
-        for categorie in resultat.categories_non_satisfaites
-    ]
-    detail = ""
-    if any(categorie.categorie == "salle" for categorie in resultat.categories_non_satisfaites):
-        detail = (
-            f" Aucune salle du catalogue ne peut accueillir {besoin.nombre_invites} invités."
-        )
-    _afficher_panneau(
-        "alerte",
-        f"Non chiffré : {', '.join(manquantes)}",
-        f"Ces prestations ne figurent pas dans l'estimation.{detail} "
-        "Un conseiller peut étudier votre demande et vous proposer une solution.",
+    candidats = resoudre_candidats(
+        besoin, st.session_state.catalogue, st.session_state.modele
     )
+    par_motif = regrouper_manques_par_motif(
+        besoin,
+        [categorie.categorie for categorie in resultat.categories_non_satisfaites],
+        candidats,
+    )
+
+    for motif, categories in par_motif.items():
+        libelles = enumerer([libelle_categorie(categorie) for categorie in categories])
+        _afficher_panneau("alerte", *_message_manque(motif, libelles, tenant))
+
+
+def _message_manque(motif: str, libelles: str, tenant: TenantContexte) -> tuple[str, str]:
+    """Titre et texte à afficher pour un motif d'absence donné"""
+    nom = escape(tenant.nom)
+    if motif == MOTIF_SUR_MESURE:
+        return (
+            f"Proposition sur mesure : {libelles}",
+            f"Vous avez demandé une proposition sur mesure pour {libelles}. "
+            f"Un commercial de {nom} vous contactera pour vous en communiquer "
+            f"le prix, qui n'est donc pas compté dans l'estimation ci-dessus. "
+            f"{_phrase_contact(tenant)}",
+        )
+    if motif == MOTIF_HORS_CATALOGUE:
+        return (
+            f"Hors catalogue : {libelles}",
+            f"{nom} ne propose pas {libelles} en ligne. Un commercial peut "
+            f"étudier votre demande et vous faire une proposition. "
+            f"{_phrase_contact(tenant)}",
+        )
+    return (
+        f"Non retenu : {libelles}",
+        f"Vous n'avez retenu aucune option pour {libelles}, "
+        "ces prestations ne sont donc pas comptées dans l'estimation.",
+    )
+
+
+def _phrase_contact(tenant: TenantContexte) -> str:
+    """Comment joindre l'entreprise sans attendre, quand ses coordonnées sont connues"""
+    if not tenant.coordonnees:
+        return "Vous pouvez aussi le joindre directement."
+    return f"Vous pouvez aussi le joindre directement au {escape(tenant.coordonnees)}."
 
 
 def _afficher_alerte_budget(resultat: ResultatChiffrage, besoin: Besoin) -> None:

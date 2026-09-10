@@ -6,7 +6,12 @@ from src.extraction.types import Besoin
 from src.moteur.types import RegleQuantite, RessourceCatalogue
 from src.orchestration.machine import decider_prochaine_etape
 from src.orchestration.parcours import chiffrer_pour_besoin, resoudre_candidats
-from src.orchestration.types import PassageChiffrage, QuestionBesoin, QuestionChoixRessources
+from src.orchestration.types import (
+    PassageChiffrage,
+    QuestionBesoin,
+    QuestionChoixRessources,
+    QuestionComplements,
+)
 
 CATALOGUE = [
     RessourceCatalogue(
@@ -67,9 +72,13 @@ BESOIN_MARIAGE_300 = Besoin(
 )
 
 
-def decider(besoin: Besoin):
+def decider(besoin: Besoin, complements_fournis: bool = False):
     """Reproduit l'enchaînement que le canal applique à chaque tour"""
-    return decider_prochaine_etape(besoin, resoudre_candidats(besoin, CATALOGUE, MODELE_MARIAGE))
+    return decider_prochaine_etape(
+        besoin,
+        resoudre_candidats(besoin, CATALOGUE, MODELE_MARIAGE),
+        complements_fournis,
+    )
 
 
 def test_besoin_incomplet_ne_declenche_aucune_selection_de_ressource():
@@ -104,12 +113,21 @@ def test_salle_seule_choisie_ne_suffit_pas_encore_au_chiffrage():
     assert decision.categorie == "mobilier"
 
 
-def test_toutes_les_categories_choisies_font_passer_la_conversation_au_chiffrage():
+def test_tous_les_choix_faits_menent_au_dernier_mot_du_prospect():
+    """Avant l'estimation, il reste une occasion de signaler ce qui manque au catalogue"""
     besoin = replace(
         BESOIN_MARIAGE_300, ressources_choisies=("salle-bastos", "chaise", "menu")
     )
 
-    assert isinstance(decider(besoin), PassageChiffrage)
+    assert isinstance(decider(besoin), QuestionComplements)
+
+
+def test_complements_fournis_font_passer_la_conversation_au_chiffrage():
+    besoin = replace(
+        BESOIN_MARIAGE_300, ressources_choisies=("salle-bastos", "chaise", "menu")
+    )
+
+    assert isinstance(decider(besoin, complements_fournis=True), PassageChiffrage)
 
 
 def test_mariage_300_invites_bastos_calcule_total_correct():

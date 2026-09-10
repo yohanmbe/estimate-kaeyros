@@ -80,7 +80,13 @@ def consulter_demande(session: Session, tenant_id: str, demande_id: str) -> Deta
         prospects.get(demande.prospect_id),
         devis[0] if devis else None,
     )
-    return DetailDemande(resume=resume, besoin=demande.besoin, devis=tuple(devis))
+    return DetailDemande(
+        resume=resume,
+        besoin=demande.besoin,
+        devis=tuple(devis),
+        besoins_hors_catalogue=demande.besoins_hors_catalogue,
+        commentaire=demande.commentaire,
+    )
 
 
 def compter_demandes_du_tenant(session: Session, tenant_id: str) -> int:

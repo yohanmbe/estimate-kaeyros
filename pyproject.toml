@@ -19,6 +19,11 @@ dependencies = [
 ]
 
 [tool.pytest.ini_options]
+# Sans cette exclusion, le marqueur ne faisait que documenter une intention :
+# « pytest » appelait pour de bon Groq et Mistral, ce que CLAUDE.md interdit.
+# « pytest -m integration » les relance, l'option de la ligne de commande
+# l'emportant sur celle-ci.
+addopts = "-m 'not integration'"
 markers = [
-    "integration: appelle un vrai service externe (API Mistral). Exclu par défaut, lancer avec -m integration.",
+    "integration: appelle un vrai service externe (API Groq ou Mistral). Exclu par défaut, lancer avec -m integration.",
 ]

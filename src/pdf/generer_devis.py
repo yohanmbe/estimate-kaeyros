@@ -11,7 +11,7 @@ from pathlib import Path
 from fpdf import FPDF
 from fpdf.enums import MethodReturnValue, XPos, YPos
 
-from src.canaux.types import ProspectContexte, TenantContexte
+from src.canaux.types import TenantContexte
 from src.catalogue.vocabulaire import libelle_categorie
 from src.extraction.types import Besoin
 from src.moteur.types import LigneDevis, ResultatChiffrage
@@ -31,7 +31,6 @@ LARGEUR_MAX_RESERVEE_LOGO_MM = 70
 COULEUR_TITRE_SECTION = (217, 79, 0)  # --orange-texte
 COULEUR_CLE = (91, 97, 120)  # --gris
 COULEUR_VALEUR = (10, 31, 111)  # --bleu-fonce
-COULEUR_VALEUR_MANQUANTE = (182, 188, 205)  # --recap__valeur--manquant
 COULEUR_FILET = (226, 230, 242)  # --trait
 COULEUR_BORDURE_TABLE = (210, 216, 236)
 COULEUR_FOND_ENTETE_TABLE = (234, 238, 251)  # --bleu-pale
@@ -46,7 +45,6 @@ def generer_pdf_devis(
     resultat: ResultatChiffrage,
     tenant: TenantContexte,
     besoin: Besoin,
-    prospect: ProspectContexte,
 ) -> bytes:
     """Met en forme un devis déjà chiffré en PDF, prêt à être téléchargé"""
     pdf = FPDF(format="A4")
@@ -54,12 +52,11 @@ def generer_pdf_devis(
     pdf.add_page()
 
     _dessiner_entete(pdf, tenant)
-    _dessiner_prospect(pdf, prospect)
     _dessiner_recapitulatif_besoin(pdf, besoin)
     _dessiner_tableau_lignes(pdf, resultat.lignes)
     _dessiner_total(pdf, resultat.total)
     if resultat.categories_non_satisfaites:
-        _dessiner_categories_non_chiffrees(pdf, resultat)
+        _dessiner_categories_non_chiffrees(pdf, resultat, besoin)
     _dessiner_mention(pdf, tenant)
 
     return bytes(pdf.output())
@@ -84,13 +81,13 @@ def _dessiner_entete(pdf: FPDF, tenant: TenantContexte) -> None:
 
     pdf.set_font("Helvetica", "", 10)
     pdf.set_text_color(*COULEUR_CLE)
+    if tenant.coordonnees:
+        pdf.cell(0, 6, tenant.coordonnees, new_x=XPos.LEFT, new_y=YPos.NEXT)
     pdf.cell(
         0, 6,
         f"Estimation établie le {datetime.now().strftime('%d/%m/%Y à %H:%M')}",
         new_x=XPos.LEFT, new_y=YPos.NEXT,
     )
-    if tenant.coordonnees:
-        pdf.cell(0, 6, tenant.coordonnees, new_x=XPos.LEFT, new_y=YPos.NEXT)
     pdf.set_text_color(0, 0, 0)
 
     pdf.set_y(max(pdf.get_y(), pdf.t_margin + HAUTEUR_LOGO_MM))
@@ -103,18 +100,14 @@ def _dessiner_entete(pdf: FPDF, tenant: TenantContexte) -> None:
 HAUTEUR_LIGNE_RECAP_MM = 7
 
 
-def _dessiner_prospect(pdf: FPDF, prospect: ProspectContexte) -> None:
-    """Qui demande cette estimation : sans ça, une demande qui n'aboutit pas
-    ne peut jamais être relancée par le commercial (voir D26).
-    """
-    champs = [("Nom", prospect.nom), ("Téléphone", prospect.telephone)]
-    if prospect.email:
-        champs.append(("Email", prospect.email))
-    _dessiner_section_cle_valeur(pdf, "DEMANDÉ PAR", champs)
-
-
 def _dessiner_recapitulatif_besoin(pdf: FPDF, besoin: Besoin) -> None:
-    """Rappelle l'événement décrit par le prospect, tel qu'extrait"""
+    """Rappelle l'événement décrit par le prospect, tel qu'extrait.
+
+    Un champ que le prospect n'a jamais précisé (le quartier, le plus
+    souvent : voir D17, il ne fait que trier les salles, jamais obligatoire)
+    est absent du récapitulatif plutôt que marqué « à préciser » : le devis
+    est déjà chiffré à ce stade, il n'y a plus rien à réclamer.
+    """
     champs = [
         ("Type", _mettre_en_forme(besoin.type_evenement)),
         ("Date", besoin.date_evenement),
@@ -123,17 +116,14 @@ def _dessiner_recapitulatif_besoin(pdf: FPDF, besoin: Besoin) -> None:
         ("Invités", formater_nombre(besoin.nombre_invites) if besoin.nombre_invites else None),
         ("Durée", f"{besoin.duree_jours} jour(s)" if besoin.duree_jours else None),
     ]
-    _dessiner_section_cle_valeur(pdf, "VOTRE ÉVÉNEMENT", champs)
+    champs_renseignes = [(cle, valeur) for cle, valeur in champs if valeur is not None]
+    _dessiner_section_cle_valeur(pdf, "VOTRE ÉVÉNEMENT", champs_renseignes)
 
 
-def _dessiner_section_cle_valeur(
-    pdf: FPDF, titre: str, champs: list[tuple[str, str | None]]
-) -> None:
+def _dessiner_section_cle_valeur(pdf: FPDF, titre: str, champs: list[tuple[str, str]]) -> None:
     """Bloc de lignes clé/valeur teinté, séparées d'un filet pointillé — même
     forme et mêmes couleurs que le récapitulatif de la barre latérale du chat
-    (voir streamlit_prospect.py). Une valeur absente se lit « à préciser » ;
-    pour un champ facultatif qui n'a simplement rien à afficher (l'email du
-    prospect, par exemple), ne pas inclure la ligne plutôt que de la passer.
+    (voir streamlit_prospect.py).
     """
     pdf.set_font("Helvetica", "B", 9)
     pdf.set_char_spacing(0.5)
@@ -148,10 +138,10 @@ def _dessiner_section_cle_valeur(
         pdf.set_text_color(*COULEUR_CLE)
         pdf.cell(largeur_cle, HAUTEUR_LIGNE_RECAP_MM, cle)
 
-        pdf.set_font("Helvetica", "" if valeur is None else "B", 10)
-        pdf.set_text_color(*(COULEUR_VALEUR_MANQUANTE if valeur is None else COULEUR_VALEUR))
+        pdf.set_font("Helvetica", "B", 10)
+        pdf.set_text_color(*COULEUR_VALEUR)
         pdf.cell(
-            largeur_valeur, HAUTEUR_LIGNE_RECAP_MM, valeur or "à préciser", align="R",
+            largeur_valeur, HAUTEUR_LIGNE_RECAP_MM, valeur, align="R",
             new_x=XPos.LMARGIN, new_y=YPos.NEXT,
         )
         _tracer_filet_pointille(pdf)
@@ -253,17 +243,44 @@ def _dessiner_total(pdf: FPDF, total: int) -> None:
     pdf.set_xy(pdf.l_margin, y + HAUTEUR_BANDEAU_TOTAL_MM)
 
 
-def _dessiner_categories_non_chiffrees(pdf: FPDF, resultat: ResultatChiffrage) -> None:
-    """Signale les catégories que le catalogue ne couvre pas, sans rien inventer"""
-    manquantes = ", ".join(
-        libelle_categorie(categorie.categorie)
+def _dessiner_categories_non_chiffrees(
+    pdf: FPDF, resultat: ResultatChiffrage, besoin: Besoin
+) -> None:
+    """Signale ce qui n'est pas chiffré, en distinguant ce que le prospect a demandé.
+
+    Ranger une prestation demandée sur mesure sous « hors catalogue »
+    reviendrait à lui répondre que ce qu'il vient de réclamer n'existe pas.
+    """
+    sur_mesure = [
+        categorie.categorie
         for categorie in resultat.categories_non_satisfaites
-    )
-    pdf.ln(4)
-    _dessiner_encart(
-        pdf, f"Non chiffré, hors catalogue actuel : {manquantes}.",
-        COULEUR_FOND_ALERTE, COULEUR_TEXTE_ALERTE,
-    )
+        if categorie.categorie in besoin.categories_sur_mesure
+    ]
+    autres = [
+        categorie.categorie
+        for categorie in resultat.categories_non_satisfaites
+        if categorie.categorie not in besoin.categories_sur_mesure
+    ]
+
+    if sur_mesure:
+        pdf.ln(4)
+        _dessiner_encart(
+            pdf,
+            f"Proposition sur mesure à venir : {_enumerer_categories(sur_mesure)}. "
+            "Un commercial vous communiquera le prix.",
+            COULEUR_FOND_ALERTE, COULEUR_TEXTE_ALERTE,
+        )
+    if autres:
+        pdf.ln(4)
+        _dessiner_encart(
+            pdf, f"Non chiffré, hors catalogue actuel : {_enumerer_categories(autres)}.",
+            COULEUR_FOND_ALERTE, COULEUR_TEXTE_ALERTE,
+        )
+
+
+def _enumerer_categories(categories: list[str]) -> str:
+    """Liste de catégories dans leur libellé lisible"""
+    return ", ".join(libelle_categorie(categorie) for categorie in categories)
 
 
 def _dessiner_mention(pdf: FPDF, tenant: TenantContexte) -> None:

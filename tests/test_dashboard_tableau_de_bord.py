@@ -8,6 +8,7 @@ from datetime import date, datetime
 
 from src.presentation.montant import formater_montant, formater_nombre
 from tests.aide_dashboard import (
+    cliquer,
     creer_demande,
     installer_tenant,
     lancer_ecran_connecte,
@@ -118,6 +119,24 @@ def test_dernieres_demandes_montrent_le_prospect_et_son_total(base_branchee):
     assert "Sylvie Nkoa" in texte
     assert formater_nombre(2_225_000) in texte
     assert "Mariage" in texte
+
+
+def test_ouvrir_une_derniere_demande_mene_a_son_detail(base_branchee):
+    """Comme depuis l'écran des demandes, un aperçu ne devrait pas être un
+    cul-de-sac : la ligne doit pouvoir s'ouvrir sans repasser par la liste.
+    """
+    tenant = installer_tenant(base_branchee)
+    demande = creer_demande(
+        base_branchee, tenant, CE_MOIS, nom_prospect="Sylvie Nkoa", total_devis=2_225_000
+    )
+    ecran = lancer_ecran_connecte(tenant.id)
+
+    ecran = cliquer(ecran, f"ouvrir-derniere-{demande.id}")
+
+    assert ecran.session_state["ecran"] == "demandes"
+    assert ecran.session_state["demande_ouverte"] == demande.id
+    assert "Sylvie Nkoa" in texte_affiche(ecran)
+    assert "Total estimé" in texte_affiche(ecran)
 
 
 def test_seules_les_cinq_dernieres_demandes_sont_listees(base_branchee):
