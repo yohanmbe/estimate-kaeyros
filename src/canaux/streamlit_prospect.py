@@ -878,7 +878,7 @@ def _afficher_bouton_telechargement(
     """Bouton de téléchargement du devis en PDF, mis en forme par src/pdf (D14)"""
     st.download_button(
         "Télécharger le PDF",
-        data=generer_pdf_devis(resultat, tenant, besoin, st.session_state.prospect),
+        data=generer_pdf_devis(resultat, tenant, besoin),
         file_name=f"devis-{tenant.slug}.pdf",
         mime="application/pdf",
         key="telecharger-pdf",

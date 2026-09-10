@@ -11,7 +11,7 @@ from pathlib import Path
 from fpdf import FPDF
 from fpdf.enums import MethodReturnValue, XPos, YPos
 
-from src.canaux.types import ProspectContexte, TenantContexte
+from src.canaux.types import TenantContexte
 from src.catalogue.vocabulaire import libelle_categorie
 from src.extraction.types import Besoin
 from src.moteur.types import LigneDevis, ResultatChiffrage
@@ -46,7 +46,6 @@ def generer_pdf_devis(
     resultat: ResultatChiffrage,
     tenant: TenantContexte,
     besoin: Besoin,
-    prospect: ProspectContexte,
 ) -> bytes:
     """Met en forme un devis déjà chiffré en PDF, prêt à être téléchargé"""
     pdf = FPDF(format="A4")
@@ -54,7 +53,6 @@ def generer_pdf_devis(
     pdf.add_page()
 
     _dessiner_entete(pdf, tenant)
-    _dessiner_prospect(pdf, prospect)
     _dessiner_recapitulatif_besoin(pdf, besoin)
     _dessiner_tableau_lignes(pdf, resultat.lignes)
     _dessiner_total(pdf, resultat.total)
@@ -84,13 +82,13 @@ def _dessiner_entete(pdf: FPDF, tenant: TenantContexte) -> None:
 
     pdf.set_font("Helvetica", "", 10)
     pdf.set_text_color(*COULEUR_CLE)
+    if tenant.coordonnees:
+        pdf.cell(0, 6, tenant.coordonnees, new_x=XPos.LEFT, new_y=YPos.NEXT)
     pdf.cell(
         0, 6,
         f"Estimation établie le {datetime.now().strftime('%d/%m/%Y à %H:%M')}",
         new_x=XPos.LEFT, new_y=YPos.NEXT,
     )
-    if tenant.coordonnees:
-        pdf.cell(0, 6, tenant.coordonnees, new_x=XPos.LEFT, new_y=YPos.NEXT)
     pdf.set_text_color(0, 0, 0)
 
     pdf.set_y(max(pdf.get_y(), pdf.t_margin + HAUTEUR_LOGO_MM))
@@ -101,16 +99,6 @@ def _dessiner_entete(pdf: FPDF, tenant: TenantContexte) -> None:
 
 
 HAUTEUR_LIGNE_RECAP_MM = 7
-
-
-def _dessiner_prospect(pdf: FPDF, prospect: ProspectContexte) -> None:
-    """Qui demande cette estimation : sans ça, une demande qui n'aboutit pas
-    ne peut jamais être relancée par le commercial (voir D26).
-    """
-    champs = [("Nom", prospect.nom), ("Téléphone", prospect.telephone)]
-    if prospect.email:
-        champs.append(("Email", prospect.email))
-    _dessiner_section_cle_valeur(pdf, "DEMANDÉ PAR", champs)
 
 
 def _dessiner_recapitulatif_besoin(pdf: FPDF, besoin: Besoin) -> None:

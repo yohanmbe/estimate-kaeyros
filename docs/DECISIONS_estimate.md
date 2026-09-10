@@ -397,4 +397,18 @@ décidée. Proposer un filtre qui ne peut jamais rien renvoyer vaudrait moins qu
 pas de filtre du tout. La valeur reste dans le modèle de données pour le jour
 où cette règle sera posée.
 
+## D38 — Le PDF ne présente plus le prospect à lui-même (2026-09-10)
+
+Retrait du bloc « Demandé par » ajouté en D27 : le document est adressé au
+prospect, il n'a pas besoin d'y lire son propre nom, téléphone et email.
+generer_pdf_devis reperd son paramètre ProspectContexte, resté sans autre
+usage dans le module. Dans l'en-tête, l'ordre devient nom du tenant, ses
+coordonnées, puis la date et l'heure d'établissement — les coordonnées du
+tenant suivent directement son nom, comme sur un papier à en-tête, plutôt
+que d'être séparées par la date.
+Raison : corrigé sur retour direct après usage du PDF généré. Les
+coordonnées du prospect (D26) restent utiles ailleurs — la demande en base
+et le tableau de bord du gestionnaire — seulement pas sur le document que
+le prospect tient déjà entre les mains.
+
 [Décisions suivantes à ajouter au fil du développement, avec la date.]
