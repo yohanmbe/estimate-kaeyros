@@ -161,7 +161,7 @@ def test_cinquante_invites_face_a_un_catalogue_de_grandes_salles():
     resultat = rechercher_candidats_salle(salles, besoin)
 
     assert [s.nom for s in resultat] == ["Prestige Bastos"]
-    assert devis_sur_mesure_pertinent("salle", resultat, 50) is True
+    assert devis_sur_mesure_pertinent("salle", resultat) is True
 
 
 def test_salle_demesuree_est_ecartee_meme_quand_une_autre_convient():
@@ -177,7 +177,9 @@ def test_salle_demesuree_est_ecartee_meme_quand_une_autre_convient():
     resultat = rechercher_candidats_salle(salles, besoin)
 
     assert [s.nom for s in resultat] == ["Prestige Bastos"]
-    assert devis_sur_mesure_pertinent("salle", resultat, 250) is False
+    # Même bien dimensionnée, la salle peut être dans une autre ville : le sur
+    # mesure reste une option, toujours, pour la salle (voir D46)
+    assert devis_sur_mesure_pertinent("salle", resultat) is True
 
 
 def test_salle_trop_petite_nest_jamais_proposee_quand_une_autre_suffit():
@@ -217,7 +219,7 @@ def test_salle_trop_petite_est_proposee_faute_de_mieux_avec_un_devis_sur_mesure(
     candidats = rechercher_candidats_par_categorie(ressources, MODELE_DEUX_CATEGORIES, besoin)
 
     assert [r.nom for r in candidats["salle"]] == ["Royale"]
-    assert devis_sur_mesure_pertinent("salle", candidats["salle"], 300) is True
+    assert devis_sur_mesure_pertinent("salle", candidats["salle"]) is True
     assert [r.nom for r in candidats["restauration"]] == ["Menu"]
 
 
@@ -290,7 +292,7 @@ def test_devis_sur_mesure_propose_quand_aucune_salle_ne_suffit():
 
     candidats = rechercher_candidats_salle(salles, besoin_pour(900))
 
-    assert devis_sur_mesure_pertinent("salle", candidats, 900) is True
+    assert devis_sur_mesure_pertinent("salle", candidats) is True
 
 
 def test_devis_sur_mesure_propose_quand_la_salle_est_demesuree():
@@ -300,23 +302,24 @@ def test_devis_sur_mesure_propose_quand_la_salle_est_demesuree():
     candidats = rechercher_candidats_salle(salles, besoin_pour(20))
 
     assert [s.nom for s in candidats] == ["Royale"]
-    assert devis_sur_mesure_pertinent("salle", candidats, 20) is True
+    assert devis_sur_mesure_pertinent("salle", candidats) is True
 
 
-def test_devis_sur_mesure_inutile_quand_une_salle_tombe_juste():
+def test_devis_sur_mesure_reste_propose_meme_quand_une_salle_tombe_juste():
+    """Bien dimensionnée ne veut pas dire dans la bonne ville : l'option reste ouverte"""
     salles = [salle("Juste", 300, "Bastos", 500_000), salle("Immense", 800, "Mvan", 900_000)]
 
     candidats = rechercher_candidats_salle(salles, besoin_pour(300))
 
-    assert devis_sur_mesure_pertinent("salle", candidats, 300) is False
+    assert devis_sur_mesure_pertinent("salle", candidats) is True
 
 
 def test_devis_sur_mesure_propose_quand_le_catalogue_na_rien_dans_la_categorie():
-    assert devis_sur_mesure_pertinent("restauration", [], 300) is True
+    assert devis_sur_mesure_pertinent("restauration", []) is True
 
 
 def test_categorie_hors_salle_bien_fournie_na_pas_besoin_de_sur_mesure():
     """Un menu n'a pas de capacité à respecter : sa seule question est d'exister"""
     menus = [prestation("Menu Standard", "restauration", 8_000)]
 
-    assert devis_sur_mesure_pertinent("restauration", menus, 300) is False
+    assert devis_sur_mesure_pertinent("restauration", menus) is False

@@ -6,7 +6,6 @@ choisit ni la question, ni le moment où elle est posée.
 """
 
 from src.catalogue.vocabulaire import libelle_categorie
-from src.extraction.types import Besoin
 from src.presentation.dates import formater_date_lisible
 
 LIBELLES_CHAMPS: dict[str, str] = {
@@ -50,25 +49,22 @@ def formuler_question_besoin(champs_manquants: tuple[str, ...]) -> str:
 def formuler_question_choix(
     categorie: str,
     nombre_candidats: int,
-    besoin: Besoin,
     devis_sur_mesure_possible: bool = False,
 ) -> str:
-    """Compose un bloc qui rappelle l'événement, dit ce qui est proposé, et ce qu'on attend.
+    """Dit ce qui est proposé pour cette catégorie, et ce qu'on attend.
 
-    Le prospect a décrit son événement plusieurs messages plus haut : sans ce
-    rappel, il voit surgir une liste de salles sans savoir sur quelle base
-    elle a été établie, ni pourquoi celle-ci et pas une autre.
+    L'événement a déjà été rappelé une fois, à l'ouverture de la conversation
+    (voir le message d'accueil) : le répéter à chaque catégorie de ressource
+    n'ajoute rien et alourdit l'échange.
     """
-    debut = f"Pour {_resume_evenement(besoin)}"
     if nombre_candidats == 0:
         return (
-            f"{debut}, aucune option de {libelle_categorie(categorie)} du catalogue "
-            "ne convient. Vous pouvez demander une proposition sur mesure, "
-            "ou passer cette prestation."
+            f"Aucune option de {libelle_categorie(categorie)} du catalogue ne convient. "
+            "Vous pouvez demander une proposition sur mesure, ou passer cette prestation."
         )
 
     options = (
-        f"voici {nombre_candidats} option{'s' if nombre_candidats > 1 else ''} "
+        f"Nous avons {nombre_candidats} option{'s' if nombre_candidats > 1 else ''} "
         f"de {libelle_categorie(categorie)}"
     )
     fin = (
@@ -77,19 +73,7 @@ def formuler_question_choix(
         if devis_sur_mesure_possible
         else "Choisissez celle qui vous convient, ou passez cette prestation."
     )
-    return f"{debut}, {options}. {fin}"
-
-
-def _resume_evenement(besoin: Besoin) -> str:
-    """Rappelle en une phrase ce sur quoi porte l'estimation"""
-    morceaux = []
-    if besoin.nombre_invites is not None:
-        morceaux.append(f"{besoin.nombre_invites} invités")
-    if besoin.ville:
-        morceaux.append(f"à {besoin.ville}")
-    if besoin.duree_jours is not None:
-        morceaux.append(f"sur {besoin.duree_jours} jour(s)")
-    return " ".join(morceaux) if morceaux else "votre événement"
+    return f"{options}. {fin}"
 
 
 def formuler_question_confirmation(champ: str, valeurs_proposees: tuple[str, ...]) -> str:

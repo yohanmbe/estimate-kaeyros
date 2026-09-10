@@ -111,8 +111,10 @@ def test_besoin_complet_avec_categories_a_choix_multiple_les_demande_une_par_une
 
     decision = decider_prochaine_etape(BESOIN_COMPLET, candidats_par_categorie=candidats)
 
+    # Le sur mesure reste possible même pour une salle bien dimensionnée : la
+    # ville ou le quartier peuvent ne pas convenir (voir D46)
     assert decision == QuestionChoixRessources(
-        categorie="salle", candidats=candidats_salle, devis_sur_mesure_possible=False
+        categorie="salle", candidats=candidats_salle, devis_sur_mesure_possible=True
     )
 
 

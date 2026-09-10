@@ -806,7 +806,6 @@ def _formuler_reponse(decision: Decision) -> str:
         return formuler_question_choix(
             decision.categorie,
             len(decision.candidats),
-            st.session_state.besoin,
             decision.devis_sur_mesure_possible,
         )
     if isinstance(decision, QuestionComplements):

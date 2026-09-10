@@ -54,7 +54,7 @@ def devis_sur_mesure_possible(
     """Vrai si le prospect peut demander une proposition de l'entreprise pour cette catégorie"""
     if besoin.nombre_invites is None:
         return False
-    return devis_sur_mesure_pertinent(categorie, candidats, besoin.nombre_invites)
+    return devis_sur_mesure_pertinent(categorie, candidats)
 
 
 def _reste_a_trancher(

@@ -511,4 +511,17 @@ prospect — le devis qu'il tient est déjà chiffré. Marquer un champ comme
 manquant dessus suggérerait à tort qu'il doit encore fournir cette
 information.
 
+## D46 — Le sur mesure reste toujours proposé pour la salle (2026-09-11)
+
+`devis_sur_mesure_pertinent` renvoie désormais toujours vrai pour la
+catégorie salle, quelle que soit l'adéquation de la capacité aux candidats
+retenus. Les autres règles de sélection des salles (capacité, borne haute,
+tri par quartier — D17) restent inchangées.
+Raison : une salle bien dimensionnée peut être dans une autre ville que
+celle voulue par le prospect — les relations ville/quartier ne sont pas
+modélisées (voir CLAUDE.md, périmètre v1) et la sélection ne les gère pas.
+Sans l'option sur mesure toujours visible, un prospect voulant se marier à
+Douala face à un catalogue uniquement à Yaoundé n'aurait aucun moyen de le
+signaler.
+
 [Décisions suivantes à ajouter au fil du développement, avec la date.]

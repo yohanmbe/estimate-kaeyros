@@ -127,27 +127,19 @@ def qualifier_ajustement_salle(salle: RessourceCatalogue, nombre_invites: int) -
     return AJUSTEMENT_AJUSTE
 
 
-def devis_sur_mesure_pertinent(
-    categorie: str, candidats: list[RessourceCatalogue], nombre_invites: int
-) -> bool:
-    """Vrai quand le catalogue ne répond pas correctement au besoin, et qu'il faut un humain.
+def devis_sur_mesure_pertinent(categorie: str, candidats: list[RessourceCatalogue]) -> bool:
+    """Vrai quand un devis sur mesure doit rester proposé à côté du catalogue.
 
-    Trois situations : rien à proposer du tout, une salle trop petite faute
-    de mieux, ou une salle démesurée par rapport au nombre d'invités. Hors
-    salle, seule l'absence totale de candidat justifie un devis sur mesure :
-    un menu ou une décoration n'a pas de capacité à respecter.
-
-    C'est l'exact complément de la règle de rechercher_candidats_salle : dès
-    qu'elle a dû se rabattre sur une salle hors gabarit, le sur mesure ouvre.
+    Pour la salle, toujours vrai : même bien dimensionnée, elle peut être
+    dans la mauvaise ville ou le mauvais quartier, ce que la sélection ne
+    gère pas (les relations ville/quartier ne sont pas modélisées). Le
+    gestionnaire tranche alors à la main. Hors salle, seule l'absence totale
+    de candidat justifie un devis sur mesure : un menu ou une décoration n'a
+    pas de capacité à respecter.
     """
-    if not candidats:
+    if categorie == CATEGORIE_SALLE:
         return True
-    if categorie != CATEGORIE_SALLE:
-        return False
-    return all(
-        qualifier_ajustement_salle(salle, nombre_invites) != AJUSTEMENT_AJUSTE
-        for salle in candidats
-    )
+    return not candidats
 
 
 def trier_par_prix_croissant(ressources: list[RessourceCatalogue]) -> list[RessourceCatalogue]:
