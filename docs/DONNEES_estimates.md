@@ -173,7 +173,9 @@ soit réécrite (voir D11 et D30). Le tableau de bord affiche la plus récente.
 ## Indicateurs du tableau de bord
 
 Quatre indicateurs, tous calculés par requête sur les tables demande et
-devis du tenant connecté, sur une période choisie par le gestionnaire.
+devis du tenant connecté, sur une période choisie par le gestionnaire. Le
+sélecteur propose quatre périodes : ce mois, ce trimestre, cette année, ou
+l'ensemble des demandes du tenant sans borne de date (« Tout », voir D48).
 
 Nombre de demandes reçues : compte des demandes du tenant sur la période.
 Montant total estimé : somme des totaux des devis émis sur la période.

@@ -5,6 +5,7 @@ import pytest
 from src.indicateurs.periodes import (
     LIBELLES_PERIODES,
     periode_de_lannee,
+    periode_de_toujours,
     periode_depuis_libelle,
     periode_du_mois,
     periode_du_trimestre,
@@ -54,8 +55,18 @@ def test_cette_annee_va_du_premier_janvier_au_trente_et_un_decembre():
     assert periode.fin == datetime(2026, 12, 31, 23, 59, 59, 999999)
 
 
+def test_tout_ne_borne_pas_par_le_bas():
+    """« Tout » (voir D48) doit couvrir l'historique complet d'un tenant,
+    sans dépendre d'une vraie date de première demande.
+    """
+    periode = periode_de_toujours(UN_JOUR_DE_FEVRIER)
+
+    assert periode.debut.year < 2024
+    assert periode.fin == datetime(2026, 2, 17, 23, 59, 59, 999999)
+
+
 def test_chaque_libelle_du_selecteur_donne_une_periode():
-    """Le sélecteur de l'écran ne propose que ces trois libellés"""
+    """Le sélecteur de l'écran ne propose que ces quatre libellés"""
     for libelle in LIBELLES_PERIODES:
         periode = periode_depuis_libelle(libelle, UN_JOUR_DE_FEVRIER)
 

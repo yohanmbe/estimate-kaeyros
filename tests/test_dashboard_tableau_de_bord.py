@@ -26,10 +26,10 @@ def un_mois_avant(reference: date) -> datetime:
     return datetime(reference.year, reference.month - 1, 15)
 
 
-def test_les_trois_indicateurs_affiches_de_d19_sont_tous_presents(base_branchee):
+def test_les_indicateurs_de_d19_sont_tous_presents(base_branchee):
     """Le montant moyen fait partie de D19 mais n'est plus affiché ici, à la
-    demande du gestionnaire (voir D19) : seuls trois indicateurs restent en
-    carte, le quatrième (répartition par tranche) portant sur une autre carte.
+    demande du gestionnaire (voir D19). Nombre de prospects rejoint les
+    cartes de chiffres bruts avec la refonte en trois rangées (voir D48).
     """
     tenant = installer_tenant(base_branchee)
     creer_demande(base_branchee, tenant, CE_MOIS, total_devis=2_225_000)
@@ -37,9 +37,10 @@ def test_les_trois_indicateurs_affiches_de_d19_sont_tous_presents(base_branchee)
     texte = texte_affiche(lancer_ecran_connecte(tenant.id))
 
     assert "Demandes reçues" in texte
+    assert "Nombre de prospects" in texte
     assert "Total estimé cumulé" in texte
     assert "Montant moyen" not in texte
-    assert "Par nombre d'invités" in texte
+    assert "Demandes par tranche d'invités" in texte
 
 
 def test_total_cumule_est_affiche_au_franc_pres(base_branchee):
@@ -70,15 +71,14 @@ def test_repartition_par_tranche_montre_les_quatre_tranches(base_branchee):
     assert "500+" in texte
 
 
-def test_les_trois_indicateurs_complementaires_sont_affiches(base_branchee):
+def test_les_deux_taux_complementaires_sont_affiches(base_branchee):
     tenant = installer_tenant(base_branchee)
     creer_demande(base_branchee, tenant, CE_MOIS, total_devis=2_225_000)
 
     texte = texte_affiche(lancer_ecran_connecte(tenant.id))
 
-    assert "prospects identifiés" in texte
-    assert "acceptent d'être recontactés" in texte
-    assert "ont reçu une estimation" in texte
+    assert "Relance autorisée" in texte
+    assert "Estimations envoyées" in texte
 
 
 def test_prospect_qui_revient_fait_moins_de_prospects_que_de_demandes(base_branchee):
@@ -96,7 +96,7 @@ def test_prospect_qui_revient_fait_moins_de_prospects_que_de_demandes(base_branc
     texte = texte_affiche(lancer_ecran_connecte(tenant.id))
 
     assert 'carte__libelle">Demandes reçues</div><div class="carte__valeur">2' in texte
-    assert 'bande__valeur">1</span><span class="bande__libelle">prospects identifiés' in texte
+    assert 'carte__libelle">Nombre de prospects</div><div class="carte__valeur">1' in texte
 
 
 def test_aucun_indicateur_de_conversion_commerciale_nest_affiche(base_branchee):
@@ -124,6 +124,21 @@ def test_periode_choisie_change_les_chiffres_affiches(base_branchee):
     ecran = ecran.segmented_control[0].set_value("Cette année").run()
 
     assert formater_nombre(4_444_000) in texte_affiche(ecran)
+
+
+def test_periode_tout_montre_les_demandes_de_toutes_les_periodes(base_branchee):
+    """« Tout » (voir D48) ne doit borner par aucune date : une demande de
+    2021 doit y apparaître alors qu'elle sort de toutes les autres périodes.
+    """
+    tenant = installer_tenant(base_branchee)
+    creer_demande(base_branchee, tenant, datetime(2021, 3, 1), total_devis=7_777_000)
+
+    ecran = lancer_ecran_connecte(tenant.id)
+    assert formater_nombre(7_777_000) not in texte_affiche(ecran)
+
+    ecran = ecran.segmented_control[0].set_value("Tout").run()
+
+    assert formater_nombre(7_777_000) in texte_affiche(ecran)
 
 
 def test_dernieres_demandes_montrent_le_prospect_et_son_total(base_branchee):

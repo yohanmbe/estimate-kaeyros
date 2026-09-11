@@ -1,9 +1,10 @@
 """Périodes d'analyse proposées au gestionnaire.
 
-Le tableau de bord n'offre pas un calendrier libre mais trois périodes usuelles.
-Elles sont calculées ici, à partir d'une date passée en paramètre plutôt que
-lue de l'horloge à l'intérieur : c'est ce qui rend le calcul testable sans
-dépendre du jour où les tests tournent.
+Le tableau de bord n'offre pas un calendrier libre mais quatre périodes
+usuelles, dont une sans borne de date ("Tout"). Elles sont calculées ici, à
+partir d'une date passée en paramètre plutôt que lue de l'horloge à
+l'intérieur : c'est ce qui rend le calcul testable sans dépendre du jour où
+les tests tournent.
 
 Les bornes couvrent la période entière, du premier jour à minuit au dernier
 jour à la dernière microseconde, et non « jusqu'à maintenant » : deux
@@ -17,10 +18,18 @@ from src.indicateurs.types import Periode
 LIBELLE_MOIS = "Ce mois"
 LIBELLE_TRIMESTRE = "Ce trimestre"
 LIBELLE_ANNEE = "Cette année"
+LIBELLE_TOUT = "Tout"
 
-LIBELLES_PERIODES: tuple[str, ...] = (LIBELLE_MOIS, LIBELLE_TRIMESTRE, LIBELLE_ANNEE)
+LIBELLES_PERIODES: tuple[str, ...] = (LIBELLE_MOIS, LIBELLE_TRIMESTRE, LIBELLE_ANNEE, LIBELLE_TOUT)
 
 MOIS_PAR_TRIMESTRE = 3
+
+# Bien avant toute donnée réelle : "Tout" ne veut dire que "ne filtre par
+# aucune date", chaque requête d'indicateur filtrant déjà par tenant_id.
+# Une vraie date de première demande n'apporterait rien de plus et
+# obligerait periode_depuis_libelle à ouvrir une session, alors qu'elle est
+# appelée par les deux écrans avant l'ouverture de la leur.
+DATE_MINIMALE_TOUT = datetime(2020, 1, 1)
 
 
 def periode_du_mois(aujourdhui: date) -> Periode:
@@ -39,12 +48,21 @@ def periode_de_lannee(aujourdhui: date) -> Periode:
     return _bornes(aujourdhui.year, 1, 12)
 
 
+def periode_de_toujours(aujourdhui: date) -> Periode:
+    """Aucune borne basse : depuis une date arbitrairement ancienne jusqu'à aujourd'hui inclus"""
+    return Periode(
+        debut=DATE_MINIMALE_TOUT,
+        fin=datetime(aujourdhui.year, aujourdhui.month, aujourdhui.day, 23, 59, 59, 999999),
+    )
+
+
 def periode_depuis_libelle(libelle: str, aujourdhui: date) -> Periode:
     """Période correspondant au libellé choisi dans le sélecteur de l'écran"""
     calculs = {
         LIBELLE_MOIS: periode_du_mois,
         LIBELLE_TRIMESTRE: periode_du_trimestre,
         LIBELLE_ANNEE: periode_de_lannee,
+        LIBELLE_TOUT: periode_de_toujours,
     }
     if libelle not in calculs:
         raise ValueError(f"période inconnue : {libelle}")

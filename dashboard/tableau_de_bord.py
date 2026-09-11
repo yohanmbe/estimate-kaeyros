@@ -1,12 +1,12 @@
-"""Écran des indicateurs (voir D19).
+"""Écran des indicateurs (voir D19 et D48).
 
 Aucun chiffre n'est calculé ici : chaque valeur sort d'une fonction de
 src/indicateurs, testée séparément, qui filtre sur le tenant de la session.
 L'écran ne fait que demander, mettre en forme et afficher.
 
-Quatre cartes pour les quatre indicateurs de D19, puis une bande discrète pour
-les trois indicateurs complémentaires : les faire toutes peser pareil ne
-hiérarchiserait rien à l'œil.
+Deux rangées : les cinq indicateurs sur une seule ligne, montant cumulé en
+tête, puis le graphique par tranche d'invités seul en pleine largeur en
+dessous (voir D48).
 """
 from datetime import date
 
@@ -16,7 +16,6 @@ from dashboard.composants import (
     CSS_LIGNES_DEMANDE,
     PROPORTIONS_LIGNE_DEMANDE,
     accorder,
-    bande_indicateur,
     carte_indicateur,
     carte_montant,
     carte_tranches,
@@ -63,8 +62,11 @@ def afficher_tableau_de_bord(
             session, tenant.id, periode, limite=NOMBRE_DERNIERES_DEMANDES
         )
 
-    _afficher_cartes(nombre_demandes, montant_total, tranches, libelle_periode)
-    _afficher_indicateurs_complementaires(nombre_prospects, taux_consentement, taux_chiffrees)
+    _afficher_cartes(
+        nombre_demandes, nombre_prospects, montant_total,
+        taux_consentement, taux_chiffrees, libelle_periode,
+    )
+    _afficher_graphique_tranches(tranches, libelle_periode)
     _afficher_dernieres_demandes(dernieres, tenant, periode)
 
 
@@ -89,47 +91,66 @@ def _afficher_entete(tenant: TenantContexte) -> str:
 
 
 def _afficher_cartes(
-    nombre_demandes: int, montant_total: int, tranches: list, libelle_periode: str
+    nombre_demandes: int,
+    nombre_prospects: int,
+    montant_total: int,
+    taux_consentement: int,
+    taux_chiffrees: int,
+    libelle_periode: str,
 ) -> None:
-    """Trois des quatre indicateurs de D19, sur une seule ligne.
-
-    Le montant moyen reste calculable (voir src/indicateurs/devis.py) mais
-    n'est plus affiché ici, à la demande du gestionnaire : voir D19.
+    """Les cinq indicateurs sur une seule ligne, le montant cumulé en tête :
+    c'est le chiffre que le gestionnaire regarde en premier, dans une carte à
+    sa propre taille (la coquille par défaut, plus grande) pendant que les
+    quatre autres partagent une taille plus dense mais identique entre elles.
     """
     st.write("")
-    cartes = st.columns(3, gap="medium")
+    cartes = st.columns([1.6, 1, 1, 1, 1], gap="medium")
     cartes[0].markdown(
-        carte_indicateur(
-            "Demandes reçues", formater_nombre(nombre_demandes), libelle_periode.lower()
-        ),
-        unsafe_allow_html=True,
-    )
-    cartes[1].markdown(
         carte_montant("Total estimé cumulé", montant_total, "somme des estimations émises"),
         unsafe_allow_html=True,
     )
+    cartes[1].markdown(
+        carte_indicateur(
+            "Demandes reçues", formater_nombre(nombre_demandes), libelle_periode.lower(),
+            modificateur="compact",
+        ),
+        unsafe_allow_html=True,
+    )
     cartes[2].markdown(
-        carte_tranches("Par nombre d'invités", tranches, "demandes par tranche"),
+        carte_indicateur(
+            "Nombre de prospects", formater_nombre(nombre_prospects), libelle_periode.lower(),
+            modificateur="compact",
+        ),
+        unsafe_allow_html=True,
+    )
+    cartes[3].markdown(
+        carte_indicateur(
+            "Relance autorisée", str(taux_consentement), "des prospects",
+            unite="%", modificateur="compact",
+        ),
+        unsafe_allow_html=True,
+    )
+    cartes[4].markdown(
+        carte_indicateur(
+            "Estimations envoyées", str(taux_chiffrees), "des demandes",
+            unite="%", modificateur="compact",
+        ),
         unsafe_allow_html=True,
     )
 
 
-def _afficher_indicateurs_complementaires(
-    nombre_prospects: int, taux_consentement: int, taux_chiffrees: int
-) -> None:
-    """Trois repères qui complètent D19 sans mesurer aucune conversion commerciale"""
+def _afficher_graphique_tranches(tranches: list, libelle_periode: str) -> None:
+    """Le graphique par tranche d'invités, seul en pleine largeur.
+
+    Une carte à lui seul plutôt qu'un tiers de rangée : à hauteur de carte
+    numérique, l'écart entre deux tranches ne se voyait plus à l'œil, alors
+    que le calcul est déjà proportionnel (voir carte_tranches).
+    """
     st.write("")
-    bandes = st.columns(3, gap="medium")
-    bandes[0].markdown(
-        bande_indicateur(formater_nombre(nombre_prospects), "prospects identifiés sur la période"),
-        unsafe_allow_html=True,
-    )
-    bandes[1].markdown(
-        bande_indicateur(f"{taux_consentement} %", "des prospects acceptent d'être recontactés"),
-        unsafe_allow_html=True,
-    )
-    bandes[2].markdown(
-        bande_indicateur(f"{taux_chiffrees} %", "des demandes ont reçu une estimation"),
+    st.markdown(
+        carte_tranches(
+            "Demandes par tranche d'invités", tranches, libelle_periode.lower(), grande=True
+        ),
         unsafe_allow_html=True,
     )
 

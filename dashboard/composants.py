@@ -109,26 +109,43 @@ def titre_ecran(titre: str, sous_titre: str) -> str:
     )
 
 
-def carte_indicateur(libelle: str, valeur: str, legende: str, unite: str | None = None) -> str:
+def carte_indicateur(
+    libelle: str,
+    valeur: str,
+    legende: str,
+    unite: str | None = None,
+    modificateur: str | None = None,
+) -> str:
     """Carte d'un indicateur : son libellé, son chiffre, sa devise et sa légende"""
     suffixe = f'<span class="carte__unite">{escape(unite)}</span>' if unite else ""
     return _carte(
         libelle,
         f'<div class="carte__valeur">{escape(valeur)}{suffixe}</div>'
         f'<div class="carte__legende">{escape(legende)}</div>',
+        modificateur=modificateur,
     )
 
 
-def carte_montant(libelle: str, montant: int, legende: str) -> str:
+def carte_montant(
+    libelle: str, montant: int, legende: str, modificateur: str | None = None
+) -> str:
     """Carte d'un montant en FCFA, devise séparée du nombre pour rester lisible"""
-    return carte_indicateur(libelle, formater_nombre(montant), legende, unite=DEVISE)
+    return carte_indicateur(
+        libelle, formater_nombre(montant), legende, unite=DEVISE, modificateur=modificateur
+    )
 
 
-def carte_tranches(libelle: str, effectifs: list[EffectifTranche], legende: str) -> str:
+def carte_tranches(
+    libelle: str, effectifs: list[EffectifTranche], legende: str, grande: bool = False
+) -> str:
     """Répartition par tranche d'invités, en barres proportionnelles.
 
     Tout à zéro donne un message explicite plutôt que quatre barres plates :
-    un graphique vide se lit comme une panne.
+    un graphique vide se lit comme une panne. grande=True lui donne sa
+    propre rangée pleine largeur, avec beaucoup plus de hauteur (voir
+    .carte--tranches-large dans style.py) : à hauteur égale aux cartes
+    numériques, l'écart entre deux tranches ne se voyait plus à l'œil bien
+    que le calcul soit déjà proportionnel (round(100 * effectif / maximum)).
     """
     maximum = max((effectif.nombre_demandes for effectif in effectifs), default=0)
     if maximum == 0:
@@ -149,14 +166,7 @@ def carte_tranches(libelle: str, effectifs: list[EffectifTranche], legende: str)
         libelle,
         f'<div class="tranches">{barres}</div>'
         f'<div class="carte__legende">{escape(legende)}</div>',
-    )
-
-
-def bande_indicateur(valeur: str, libelle: str) -> str:
-    """Indicateur secondaire, sur une seule ligne discrète"""
-    return (
-        f'<div class="bande"><span class="bande__valeur">{escape(valeur)}</span>'
-        f'<span class="bande__libelle">{escape(libelle)}</span></div>'
+        modificateur="tranches-large" if grande else None,
     )
 
 
@@ -341,11 +351,10 @@ def accorder(nombre: int, singulier: str, pluriel: str | None = None) -> str:
     return f"{formater_nombre(nombre)} {mot}"
 
 
-def _carte(libelle: str, contenu: str) -> str:
+def _carte(libelle: str, contenu: str, modificateur: str | None = None) -> str:
     """Coquille commune des cartes d'indicateurs"""
-    return (
-        f'<div class="carte"><div class="carte__libelle">{escape(libelle)}</div>{contenu}</div>'
-    )
+    classe = f"carte carte--{modificateur}" if modificateur else "carte"
+    return f'<div class="{classe}"><div class="carte__libelle">{escape(libelle)}</div>{contenu}</div>'
 
 
 def _classe_barre(effectif: int) -> str:

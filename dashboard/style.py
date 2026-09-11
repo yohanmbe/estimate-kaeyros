@@ -40,7 +40,7 @@ FEUILLE_DE_STYLE = """
    champs de saisie ne sont pas concernés : leur édition passe par le widget
    natif du navigateur, jamais par la sélection de texte d'un ancêtre. */
 .stApp{user-select:none;}
-.carte__valeur, .bande__valeur, .tranche__effectif, .total__montant,
+.carte__valeur, .tranche__effectif, .total__montant,
 .recap__valeur, .table__principal, .table__secondaire, .table__nb{
   user-select:text;}
 
@@ -148,13 +148,24 @@ section[data-testid="stSidebar"] [data-testid="stSidebarUserContent"]{
 .carte{background:var(--surface);border:1px solid var(--trait);border-radius:16px;
   padding:1.15rem 1.3rem;height:100%;min-height:9.6rem;
   box-shadow:0 1px 3px rgba(16,19,34,.04);}
+/* line-height et min-height fixes : sur une ligne de cartes, un libellé
+   court ("Demandes reçues") et un plus long qui casse sur deux lignes
+   ("Nombre de prospects") ne doivent pas décaler la valeur en dessous —
+   sinon les chiffres de la rangée ne s'alignent plus entre eux. */
 .carte__libelle{font-size:.68rem;letter-spacing:.13em;text-transform:uppercase;color:var(--gris);
-  font-weight:800;}
+  font-weight:800;line-height:1.3;min-height:2.6em;}
 .carte__valeur{font-size:2rem;font-weight:800;color:var(--encre);margin-top:.5rem;
   font-variant-numeric:tabular-nums;line-height:1.1;letter-spacing:-.02em;}
 .carte__unite{font-size:.82rem;font-weight:700;color:var(--gris);margin-left:.35rem;
   letter-spacing:.02em;}
 .carte__legende{font-size:.8rem;color:var(--gris-clair);margin-top:.55rem;}
+
+/* Cartes de taux (rangée 2 du tableau de bord) : même coquille, plus basse
+   et plus dense, pour peser visiblement moins que les cartes de chiffres
+   bruts de la rangée 1. */
+.carte--compact{min-height:auto;padding:.9rem 1.2rem;}
+.carte--compact .carte__valeur{font-size:1.5rem;margin-top:.35rem;}
+.carte--compact .carte__legende{margin-top:.35rem;}
 
 /* Histogramme des tranches : effectif au-dessus, tranche en dessous */
 .tranches{display:flex;align-items:flex-end;gap:.55rem;margin-top:.7rem;height:3.9rem;}
@@ -166,11 +177,14 @@ section[data-testid="stSidebar"] [data-testid="stSidebarUserContent"]{
 .tranche__barre--vide{background:var(--trait);}
 .tranche__libelle{font-size:.7rem;color:var(--gris);white-space:nowrap;}
 
-/* ---------- Bande d'indicateurs secondaires ---------- */
-.bande{background:var(--surface);border:1px solid var(--trait);border-radius:14px;
-  padding:.9rem 1.2rem;display:flex;align-items:baseline;gap:.6rem;}
-.bande__valeur{font-size:1.25rem;font-weight:800;color:var(--bleu);font-variant-numeric:tabular-nums;}
-.bande__libelle{font-size:.84rem;color:var(--gris);}
+/* Carte du graphique par tranches (rangée 3, pleine largeur) : beaucoup
+   plus de hauteur que la carte générique, sinon l'écart entre deux tranches
+   ne se voit plus à l'œil bien que déjà proportionnel en pourcentage. */
+.carte--tranches-large{min-height:auto;padding:1.4rem 1.6rem 1.2rem;}
+.carte--tranches-large .tranches{height:11rem;margin-top:1.4rem;gap:1.1rem;}
+.carte--tranches-large .tranche__barre{border-radius:7px 7px 0 0;}
+.carte--tranches-large .tranche__effectif{font-size:.95rem;}
+.carte--tranches-large .tranche__libelle{font-size:.78rem;}
 
 /* ---------- Panneaux et tableaux ---------- */
 .panneau-liste{background:var(--surface);border:1px solid var(--trait);border-radius:16px;

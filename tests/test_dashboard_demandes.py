@@ -81,6 +81,23 @@ def test_le_filtre_abandonnee_nest_pas_propose(base_branchee):
     assert "Abandonnée" not in texte_affiche(ecran)
 
 
+def test_periode_tout_montre_les_demandes_de_toutes_les_periodes(base_branchee):
+    """« Tout » (voir D48) ne doit borner par aucune date : une demande de
+    2021 doit y apparaître alors qu'elle sort de « Cette année » (2026).
+    """
+    tenant = installer_tenant(base_branchee)
+    creer_demande(
+        base_branchee, tenant, datetime(2021, 3, 1), nom_prospect="Ancienne demande"
+    )
+
+    ecran = ouvrir_ecran(tenant.id)
+    assert "Ancienne demande" not in texte_affiche(ecran)
+
+    ecran = ecran.segmented_control[1].set_value("Tout").run()
+
+    assert "Ancienne demande" in texte_affiche(ecran)
+
+
 def test_detail_dune_demande_porte_le_besoin_et_les_coordonnees(base_branchee):
     tenant = installer_tenant(base_branchee)
     demande = creer_demande(

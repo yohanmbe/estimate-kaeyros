@@ -548,4 +548,25 @@ prospects distincts sur une période, désormais possiblement inférieur au
 nombre de demandes) et l'historique par prospect affiché sur le détail
 d'une demande (dashboard/demandes.py).
 
+## D48 — Une période "Tout" et une hiérarchie visuelle affirmée sur le tableau de bord (2026-09-11)
+
+Le sélecteur de période (tableau de bord et écran des demandes, tous deux
+alimentés par src/indicateurs/periodes.py::LIBELLES_PERIODES) gagne une
+quatrième option, "Tout", qui ne filtre par aucune borne de date basse :
+le gestionnaire voit ainsi l'historique complet d'un tenant sans avoir à
+faire tourner une période couvrant toutes ses années d'activité. Bornée à
+une date fixe arbitrairement ancienne (2020) plutôt qu'à la date réelle de
+la première demande du tenant : periode_depuis_libelle est une fonction
+pure, appelée par les deux écrans avant l'ouverture de leur session, et
+chaque requête d'indicateur filtre de toute façon déjà par tenant_id.
+
+Le tableau de bord passe de « trois cartes + trois indicateurs discrets »
+à trois rangées hiérarchisées : les trois chiffres bruts (demandes,
+prospects, montant cumulé) en cartes de même poids, les deux taux
+complémentaires en cartes plus petites, la répartition par tranche
+d'invités en graphique pleine largeur — ses barres restaient trop basses
+pour se lire comme proportionnelles au chiffre affiché au-dessus de
+chacune, bien que le calcul le soit déjà. Aucun calcul ne change, D19
+reste inchangée.
+
 [Décisions suivantes à ajouter au fil du développement, avec la date.]
