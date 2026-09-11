@@ -569,4 +569,43 @@ pour se lire comme proportionnelles au chiffre affiché au-dessus de
 chacune, bien que le calcul le soit déjà. Aucun calcul ne change, D19
 reste inchangée.
 
+## D49 — Un écran qui entre par le prospect et non par la demande (2026-09-11)
+
+Le tableau de bord gagne un quatrième écran, Prospects : la liste des
+personnes qui ont demandé une estimation, et la fiche de chacune —
+coordonnées en haut, tout son historique de demandes en dessous, dans la
+table même de l'écran des demandes, chaque ligne ouvrable sur son détail.
+Le bloc « Demandé par » du détail d'une demande gagne en retour un bouton
+vers la fiche : la navigation boucle dans les deux sens.
+Raison : depuis D47 le produit sait qu'un prospect est revenu, mais rien ne
+permettait d'aller le voir — aucune fonction ne listait la table prospect,
+seulement deux agrégats. Un prospect qui appelle, numéro à l'écran, ne
+pouvait pas être retrouvé autrement qu'en parcourant les demandes à l'œil.
+D'où aussi la recherche par nom ou par téléphone, tolérante aux espaces de
+la saisie, seul filtre de ce genre dans le produit.
+
+La liste est bornée par la date de création du prospect, comme
+compter_prospects : le chiffre de la carte « Nombre de prospects » du
+tableau de bord et le nombre de lignes de cet écran doivent toujours dire
+la même chose. Le tri porte sur la même colonne que le filtre. En revanche
+le nombre de demandes par prospect, lui, ignore la période : « cette
+personne est revenue trois fois » est un fait sur elle, pas sur le mois
+affiché — même règle que sur le détail d'une demande (D47). La fiche n'est
+bornée par aucune période, pour la même raison.
+Contrepartie : aucun montant n'est agrégé par prospect. Un total cumulé par
+personne imposerait une requête de plus sur les devis alors que chaque
+montant se lit une ligne plus bas, sur sa fiche.
+
+La table des demandes est sortie dans dashboard/lignes_demandes.py, appelée
+par les trois écrans qui la montrent, plutôt que recopiée une troisième
+fois. Elle ne pouvait pas rejoindre dashboard/composants.py, dont les
+fonctions n'appellent jamais Streamlit — c'est ce qui sépare les deux
+modules.
+
+Corrige au passage periode_de_toujours (D48), dont la borne haute
+s'arrêtait au jour courant alors que les trois autres périodes vont
+jusqu'au bout de leur unité : une ligne datée plus tard dans l'année se
+lisait sur « Cette année » mais disparaissait de « Tout ». La borne haute
+de « Tout » est désormais celle de « Cette année ».
+
 [Décisions suivantes à ajouter au fil du développement, avec la date.]

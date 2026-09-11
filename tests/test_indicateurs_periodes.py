@@ -62,7 +62,20 @@ def test_tout_ne_borne_pas_par_le_bas():
     periode = periode_de_toujours(UN_JOUR_DE_FEVRIER)
 
     assert periode.debut.year < 2024
-    assert periode.fin == datetime(2026, 2, 17, 23, 59, 59, 999999)
+    assert periode.fin == datetime(2026, 12, 31, 23, 59, 59, 999999)
+
+
+def test_tout_contient_les_trois_autres_periodes():
+    """Sinon une ligne datée plus tard dans l'année se lirait sur « Cette
+    année » mais disparaîtrait de « Tout » : « Tout » ne veut plus rien dire.
+    """
+    tout = periode_de_toujours(UN_JOUR_DE_FEVRIER)
+
+    for calcul in (periode_du_mois, periode_du_trimestre, periode_de_lannee):
+        autre = calcul(UN_JOUR_DE_FEVRIER)
+
+        assert tout.debut <= autre.debut
+        assert tout.fin >= autre.fin
 
 
 def test_chaque_libelle_du_selecteur_donne_une_periode():

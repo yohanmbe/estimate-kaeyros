@@ -40,7 +40,9 @@ from src.consultation.demandes import (
     compter_demandes_du_tenant,
     consulter_demande,
     lister_demandes,
+    lister_demandes_du_prospect,
 )
+from src.consultation.prospects import consulter_prospect, lister_prospects
 from src.db.models import Prospect, Ressource, Tenant
 from src.indicateurs.chiffrage import calculer_taux_demandes_chiffrees
 from src.indicateurs.demandes import compter_demandes, repartir_par_tranche_invites
@@ -138,8 +140,28 @@ def test_lecture_des_demandes_par_le_gestionnaire_filtre_toujours_sur_le_tenant(
 
     lister_demandes(session, etoile.id, PERIODE)
     lister_demandes(session, etoile.id, PERIODE, limite=5)
+    lister_demandes_du_prospect(session, etoile.id, prospect.id)
     consulter_demande(session, etoile.id, demande.id)
     compter_demandes_du_tenant(session, etoile.id)
+
+
+def test_lecture_des_prospects_par_le_gestionnaire_filtre_toujours_sur_le_tenant(
+    session, requetes_cloisonnees
+):
+    """Le carnet d'adresses (voir D49) lit la table prospect et, à travers
+    elle, les demandes rattachées : les deux doivent filtrer sur le tenant.
+    """
+    etoile = creer_tenant(session, "etoile")
+    prospect = enregistrer_prospect(
+        session, etoile.id, "Sylvie Nkoa", "699001122", None, consentement_contact=True
+    )
+    ouvrir_demande(session, etoile.id, canal="streamlit", prospect_id=prospect.id, besoin={})
+
+    lister_prospects(session, etoile.id, PERIODE)
+    lister_prospects(session, etoile.id, PERIODE, recherche="Sylvie")
+    lister_prospects(session, etoile.id, PERIODE, limite=5)
+    consulter_prospect(session, etoile.id, prospect.id)
+    lister_demandes_du_prospect(session, etoile.id, prospect.id)
 
 
 def test_lecture_du_catalogue_filtre_toujours_sur_le_tenant(session, requetes_cloisonnees):

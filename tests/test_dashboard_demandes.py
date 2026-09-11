@@ -193,6 +193,35 @@ def test_retour_ramene_a_la_liste(base_branchee):
     assert "demande_ouverte" not in ecran.session_state
 
 
+def test_le_detail_dune_demande_mene_a_la_fiche_de_son_prospect(base_branchee):
+    """La navigation boucle dans les deux sens (voir D49) : d'une demande on
+    remonte à la personne, dont on redescend vers ses autres demandes.
+    """
+    tenant = installer_tenant(base_branchee)
+    demande = creer_demande(
+        base_branchee, tenant, LE_15_JANVIER, nom_prospect="Sylvie Nkoa", total_devis=2_225_000
+    )
+    ecran = cliquer(ouvrir_ecran(tenant.id), f"ouvrir-{demande.id}")
+
+    ecran = cliquer(ecran, "voir-fiche-prospect")
+
+    assert ecran.session_state["ecran"] == "prospects"
+    assert ecran.session_state["prospect_ouvert"] == demande.prospect.id
+    assert "demande_ouverte" not in ecran.session_state
+    assert "Coordonnées" in texte_affiche(ecran)
+
+
+def test_demande_sans_prospect_naffiche_pas_le_bouton_de_fiche(base_branchee):
+    """Sans prospect rattaché, il n'y a aucune fiche vers où aller"""
+    tenant = installer_tenant(base_branchee)
+    demande = creer_demande(base_branchee, tenant, LE_15_JANVIER)
+    demande.prospect_id = None
+    base_branchee.commit()
+    ecran = cliquer(ouvrir_ecran(tenant.id), f"ouvrir-{demande.id}")
+
+    assert [bouton for bouton in ecran.button if bouton.key == "voir-fiche-prospect"] == []
+
+
 def test_demande_dune_autre_entreprise_reste_introuvable(base_branchee):
     """L'identifiant d'une demande voyage dans les clés de widgets : le forcer
     en session ne doit rien ouvrir.

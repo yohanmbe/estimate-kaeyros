@@ -108,7 +108,7 @@ def test_aucune_donnee_dune_autre_entreprise_napparait_a_lecran(base_branchee):
         base_branchee, fanta, LE_15_JANVIER, nom_prospect="Roger Tchoumi", total_devis=9_999_999
     )
 
-    for nom_ecran in ("tableau_de_bord", "demandes", "catalogue"):
+    for nom_ecran in ("tableau_de_bord", "demandes", "prospects", "catalogue"):
         texte = texte_affiche(lancer_ecran_connecte(etoile.id, ecran=nom_ecran))
 
         assert "Roger Tchoumi" not in texte

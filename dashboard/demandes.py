@@ -14,27 +14,22 @@ from html import escape
 import streamlit as st
 
 from dashboard.composants import (
-    CSS_LIGNES_DEMANDE,
     LIBELLES_ETATS,
-    PROPORTIONS_LIGNE_DEMANDE,
     accorder,
-    cellule_double,
-    cellule_montant,
-    cellule_ou_absente,
     date_francaise,
     etat_vide,
     panneau,
     pastille_categorie,
     pastille_etat,
     recapitulatif,
-    resume_evenement,
     tableau_devis,
     titre_ecran,
 )
+from dashboard.lignes_demandes import afficher_entetes_demandes, afficher_lignes_demandes
 from src.auth.types import UtilisateurContexte
 from src.canaux.types import TenantContexte
 from src.consultation.demandes import consulter_demande, lister_demandes
-from src.consultation.types import DetailDemande, LigneListeDemande
+from src.consultation.types import DetailDemande, ProspectDeLaDemande
 from src.db.models import ETAT_COMPLETE, ETAT_EN_COURS
 from src.db.session import ouvrir_session
 from src.indicateurs.periodes import LIBELLES_PERIODES, periode_depuis_libelle
@@ -93,10 +88,8 @@ def _afficher_liste(tenant: TenantContexte) -> None:
         f'<div class="libelle-filtre">{accorder(len(demandes), "demande")}</div>',
         unsafe_allow_html=True,
     )
-    st.markdown(CSS_LIGNES_DEMANDE, unsafe_allow_html=True)
-    _afficher_entetes_de_colonnes()
-    for demande in demandes:
-        _afficher_ligne(demande)
+    afficher_entetes_demandes("entetes-demandes")
+    afficher_lignes_demandes(demandes, prefixe_cle="ouvrir")
 
 
 def _afficher_filtres() -> tuple[str, str]:
@@ -121,63 +114,6 @@ def _afficher_filtres() -> tuple[str, str]:
             label_visibility="collapsed",
         )
     return etat or FILTRE_TOUS, periode or LIBELLES_PERIODES[2]
-
-
-def _afficher_entetes_de_colonnes() -> None:
-    """Les mêmes proportions que les lignes, pour que les colonnes s'alignent"""
-    entetes = (
-        ("Reçue le", ""),
-        ("Événement", ""),
-        ("Date prévue", ""),
-        ("Total estimé", " libelle-filtre--nb"),
-        ("Statut", ""),
-        ("", ""),
-    )
-    with st.container(key="entetes-demandes"):
-        colonnes = st.columns(PROPORTIONS_LIGNE_DEMANDE, vertical_alignment="center")
-        for colonne, (entete, alignement) in zip(colonnes, entetes):
-            colonne.markdown(
-                f'<div class="libelle-filtre{alignement}">{entete}</div>',
-                unsafe_allow_html=True,
-            )
-
-
-def _afficher_ligne(demande: LigneListeDemande) -> None:
-    """Une demande par ligne, avec le bouton qui ouvre son détail.
-
-    La clé du conteneur et celle du bouton dérivent de l'identifiant de la
-    demande, jamais de son rang : un changement de filtre réordonne la liste et
-    recollerait sinon l'état d'un bouton sur la mauvaise ligne.
-    """
-    with st.container(key=f"ligne-demande-{demande.id}"):
-        colonnes = st.columns(PROPORTIONS_LIGNE_DEMANDE, vertical_alignment="center")
-        colonnes[0].markdown(
-            cellule_double(
-                demande.date_creation.strftime("%d/%m/%Y"),
-                demande.prospect.nom if demande.prospect else "Prospect inconnu",
-            ),
-            unsafe_allow_html=True,
-        )
-        colonnes[1].markdown(
-            cellule_double(
-                (demande.type_evenement or "Événement").capitalize(),
-                resume_evenement(demande) or None,
-            ),
-            unsafe_allow_html=True,
-        )
-        colonnes[2].markdown(
-            cellule_ou_absente(date_francaise(demande.date_evenement)),
-            unsafe_allow_html=True,
-        )
-        colonnes[3].markdown(
-            f'<div class="table__nb table__principal">'
-            f"{cellule_montant(demande.total_dernier_devis, demande.devise)}</div>",
-            unsafe_allow_html=True,
-        )
-        colonnes[4].markdown(pastille_etat(demande.etat), unsafe_allow_html=True)
-        if colonnes[5].button("Ouvrir →", key=f"ouvrir-{demande.id}", use_container_width=True):
-            st.session_state.demande_ouverte = demande.id
-            st.rerun()
 
 
 def _afficher_detail(tenant: TenantContexte, demande_id: str) -> None:
@@ -216,11 +152,28 @@ def _afficher_detail(tenant: TenantContexte, demande_id: str) -> None:
 
     colonne_besoin, colonne_prospect = st.columns(2, gap="medium")
     colonne_besoin.markdown(_recapitulatif_besoin(detail), unsafe_allow_html=True)
-    colonne_prospect.markdown(_recapitulatif_prospect(detail), unsafe_allow_html=True)
+    with colonne_prospect:
+        st.markdown(_recapitulatif_prospect(detail), unsafe_allow_html=True)
+        _afficher_lien_vers_la_fiche(resume.prospect)
 
     _afficher_mots_du_prospect(detail)
     _afficher_demandes_sur_mesure(detail)
     _afficher_devis(detail)
+
+
+def _afficher_lien_vers_la_fiche(prospect: ProspectDeLaDemande | None) -> None:
+    """Passage vers la fiche du prospect, quand la demande en a un.
+
+    Le bouton est posé à côté du récapitulatif plutôt que dedans :
+    _recapitulatif_prospect reste une fonction pure qui ne fait que du HTML.
+    """
+    if prospect is None:
+        return
+    if st.button("Voir la fiche prospect →", key="voir-fiche-prospect"):
+        st.session_state.ecran = "prospects"
+        st.session_state.prospect_ouvert = prospect.id
+        st.session_state.pop("demande_ouverte", None)
+        st.rerun()
 
 
 def _afficher_demandes_sur_mesure(detail: DetailDemande) -> None:

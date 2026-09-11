@@ -113,6 +113,35 @@ def installer_tenant(
     return tenant
 
 
+def creer_prospect(
+    session: Session,
+    tenant: Tenant,
+    date_creation: datetime,
+    nom: str = "Sylvie Nkoa",
+    telephone: str = "699001122",
+    email: str | None = "sylvie@example.cm",
+    consentement_contact: bool = True,
+) -> Prospect:
+    """Crée une fiche prospect seule, sans demande.
+
+    Un prospect peut exister sans aucune demande : le formulaire de
+    coordonnées est rempli avant que la conversation n'aboutisse. L'écran des
+    prospects doit savoir montrer ce cas, d'où ce helper séparé de
+    creer_demande, qui lui en crée toujours une.
+    """
+    prospect = Prospect(
+        tenant_id=tenant.id,
+        nom=nom,
+        telephone=telephone,
+        email=email,
+        consentement_contact=consentement_contact,
+        date_creation=date_creation,
+    )
+    session.add(prospect)
+    session.commit()
+    return prospect
+
+
 def creer_demande(
     session: Session,
     tenant: Tenant,
@@ -138,16 +167,14 @@ def creer_demande(
     alors ignorés.
     """
     if prospect is None:
-        prospect = Prospect(
-            tenant_id=tenant.id,
+        prospect = creer_prospect(
+            session,
+            tenant,
+            date_creation,
             nom=nom_prospect,
             telephone=telephone,
-            email="sylvie@example.cm",
             consentement_contact=consentement_contact,
-            date_creation=date_creation,
         )
-        session.add(prospect)
-        session.flush()
 
     demande = Demande(
         tenant_id=tenant.id,

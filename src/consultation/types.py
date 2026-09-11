@@ -16,8 +16,12 @@ class ProspectDeLaDemande:
     nombre_demandes compte toutes les demandes de ce prospect, toutes
     périodes confondues (voir D47) : un même téléphone reconnu qui revient
     doit rester identifiable comme tel sur le détail d'une demande.
+
+    id est porté pour que le détail d'une demande sache vers quelle fiche
+    envoyer le gestionnaire (voir D49), pas pour être affiché.
     """
 
+    id: str
     nom: str
     telephone: str
     email: str | None
@@ -67,6 +71,42 @@ class LigneListeDemande:
     prospect: ProspectDeLaDemande | None
     total_dernier_devis: int | None
     devise: str | None
+
+
+@dataclass(frozen=True)
+class LigneListeProspect:
+    """Un prospect tel que la liste du gestionnaire le présente (voir D49).
+
+    date_derniere_demande vaut None pour un prospect sans aucune demande :
+    la fiche existe dès que le formulaire est rempli, la conversation peut
+    s'arrêter avant d'ouvrir une demande.
+
+    nombre_demandes et date_derniere_demande portent sur toute la vie du
+    prospect, jamais sur la période affichée par la liste : « cette personne
+    est revenue trois fois » est un fait sur la personne (voir D47).
+    """
+
+    id: str
+    nom: str
+    telephone: str
+    email: str | None
+    consentement_contact: bool
+    date_creation: datetime
+    nombre_demandes: int
+    date_derniere_demande: datetime | None
+
+
+@dataclass(frozen=True)
+class DetailProspect:
+    """Un prospect, ses coordonnées et toutes ses demandes.
+
+    demandes est ordonné de la plus récente à la plus ancienne, et n'est
+    borné par aucune période : la fiche d'une personne porte son historique
+    entier, quelle que soit la période choisie dans la liste.
+    """
+
+    resume: LigneListeProspect
+    demandes: tuple[LigneListeDemande, ...]
 
 
 @dataclass(frozen=True)

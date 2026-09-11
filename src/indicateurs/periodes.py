@@ -49,11 +49,15 @@ def periode_de_lannee(aujourdhui: date) -> Periode:
 
 
 def periode_de_toujours(aujourdhui: date) -> Periode:
-    """Aucune borne basse : depuis une date arbitrairement ancienne jusqu'à aujourd'hui inclus"""
-    return Periode(
-        debut=DATE_MINIMALE_TOUT,
-        fin=datetime(aujourdhui.year, aujourdhui.month, aujourdhui.day, 23, 59, 59, 999999),
-    )
+    """Aucune borne basse, et la borne haute la plus large des quatre périodes.
+
+    La borne haute est celle de periode_de_lannee et non « aujourd'hui » :
+    "Tout" doit contenir tout ce que les trois autres périodes contiennent,
+    sinon une ligne datée plus tard dans l'année se lirait sur « Cette
+    année » mais disparaîtrait de « Tout », ce qui n'a aucun sens pour le
+    gestionnaire.
+    """
+    return Periode(debut=DATE_MINIMALE_TOUT, fin=periode_de_lannee(aujourdhui).fin)
 
 
 def periode_depuis_libelle(libelle: str, aujourdhui: date) -> Periode:

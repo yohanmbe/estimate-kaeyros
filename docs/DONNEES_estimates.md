@@ -126,6 +126,15 @@ suivante — nom, email et consentement_contact restent ceux de la
 première fois. C'est ce qui permet de compter les prospects distinctement
 des demandes, et de savoir combien de demandes un même prospect a faites.
 
+L'écran Prospects du tableau de bord lit cette table en lecture seule
+(voir D49). La liste est bornée par date_creation du prospect, comme
+compter_prospects, et se cherche par nom ou par téléphone. Le nombre de
+demandes de chaque prospect et la date de la dernière sortent d'un
+regroupement sur demande.prospect_id qui, lui, ne borne par aucune date :
+combien de fois une personne est revenue est un fait sur elle, pas sur la
+période affichée. Aucun montant n'est agrégé par prospect — les totaux se
+lisent demande par demande, dans les devis figés.
+
 ### demande
 Une conversation en cours ou terminée.
 - id, tenant_id, canal (streamlit / whatsapp), prospect_id

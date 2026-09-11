@@ -140,6 +140,23 @@ section[data-testid="stSidebar"] [data-testid="stSidebarUserContent"]{
   font-weight:800;margin:.55rem 0 .2rem;}
 .libelle-filtre--nb{text-align:right;}
 
+/* Champ de recherche d'une barre de filtres : il doit se lire comme un
+   contrôle à côté des pilules de période, pas comme un texte gris posé sur
+   le fond. Hauteur calée sur celle des pilules pour que la rangée s'aligne. */
+[class*="st-key-recherche-"] .stTextInput input{background:var(--surface);
+  border:1px solid var(--trait);border-radius:9px;height:2.45rem;
+  font-size:.88rem;padding:0 .85rem;color:var(--encre);}
+[class*="st-key-recherche-"] .stTextInput input:focus{border-color:var(--bleu);
+  box-shadow:0 0 0 3px var(--bleu-pale);}
+[class*="st-key-recherche-"] .stTextInput input::placeholder{color:var(--gris);}
+[class*="st-key-recherche-"] .stTextInput div[data-baseweb="input"]{background:transparent;
+  border:none;}
+/* Même hauteur que le champ pour les pilules qui l'accompagnent : les deux
+   colonnes sont alignées par le bas, la plus haute remonterait sinon son
+   libellé et la rangée de filtres se lirait en escalier. Ciblé par la clé du
+   conteneur, pour ne toucher que cet écran. */
+[class*="st-key-periode-prospects-boite"] button{height:2.45rem;}
+
 /* Streamlit ajoute une ancre cliquable dans chaque titre de niveau 1 : sans
    intérêt sur un écran d'application, et visible au survol. */
 .titre-ecran a{display:none !important;}

@@ -3,7 +3,7 @@
 Lancement : streamlit run dashboard/app.py
 
 Cet écran règle la page, charge la feuille de style, garde la porte, puis
-aiguille vers l'un des trois écrans. Le tenant_id vient uniquement de la
+aiguille vers l'un des quatre écrans. Le tenant_id vient uniquement de la
 session établie à la connexion : jamais d'un paramètre d'URL, jamais d'une
 liste déroulante (voir CLAUDE.md, Multi-locataires). Sans lui, rien ne
 s'affiche que le formulaire de connexion.
@@ -26,6 +26,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from dashboard.catalogue import afficher_catalogue  # noqa: E402
 from dashboard.connexion import afficher_connexion  # noqa: E402
 from dashboard.demandes import afficher_demandes  # noqa: E402
+from dashboard.prospects import afficher_prospects  # noqa: E402
 from dashboard.style import FEUILLE_DE_STYLE, STYLE_CONNEXION  # noqa: E402
 from dashboard.tableau_de_bord import afficher_tableau_de_bord  # noqa: E402
 from src.auth.types import UtilisateurContexte  # noqa: E402
@@ -47,6 +48,7 @@ ECRANS = {
     "tableau_de_bord": ("", "Tableau de bord", afficher_tableau_de_bord),
     "catalogue": ("", "Catalogue", afficher_catalogue),
     "demandes": ("", "Demandes", afficher_demandes),
+    "prospects": ("", "Prospects", afficher_prospects),
 }
 
 
@@ -125,6 +127,7 @@ def _aller_a(nom_ecran: str) -> None:
     """Change d'écran et oublie l'état propre à l'écran quitté"""
     st.session_state.ecran = nom_ecran
     st.session_state.pop("demande_ouverte", None)
+    st.session_state.pop("prospect_ouvert", None)
     st.session_state.pop("ressource_en_edition", None)
     st.rerun()
 
@@ -136,6 +139,7 @@ def _deconnecter() -> None:
         "tenant_id",
         "ecran",
         "demande_ouverte",
+        "prospect_ouvert",
         "ressource_en_edition",
     ):
         st.session_state.pop(cle, None)

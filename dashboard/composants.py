@@ -54,6 +54,12 @@ HAUTEUR_BARRE_MINIMALE = 4
 # tables qui se ressemblent à peu près.
 PROPORTIONS_LIGNE_DEMANDE = (1.5, 2.3, 1.5, 1.5, 1.9, 1.3)
 
+# Prospect (nom + téléphone), Demandes, Dernière demande, Ouvrir : la table
+# du carnet d'adresses (voir D49). Ni email ni relance : l'email reste un
+# détail réservé à la fiche, et la relance concerne une demande, pas la
+# personne — la liste ne porte que ce qui identifie et situe le prospect.
+PROPORTIONS_LIGNE_PROSPECT = (3.2, 1.2, 1.7, 1.3)
+
 # Une ligne trop étroite pour son contenu coupe proprement avec une ellipse
 # plutôt que de déborder de sa boîte ou de passer sur deux lignes inégales :
 # préfixe [class*="st-key-ligne-demande-"] pour ne tronquer que les lignes,

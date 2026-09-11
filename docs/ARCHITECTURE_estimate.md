@@ -121,9 +121,10 @@ L'authentification est volontairement minimale (voir D18) : vérification
 du mot de passe haché, session Streamlit, déconnexion. Pas de
 récupération de mot de passe, pas de rôles.
 
-Le tableau de bord expose trois écrans : les indicateurs, le catalogue en
+Le tableau de bord expose quatre écrans : les indicateurs, le catalogue en
 lecture et écriture, les demandes reçues en lecture seule avec le détail
-du devis émis.
+du devis émis, et les prospects — les mêmes données lues par la personne
+plutôt que par la demande, avec sa fiche et tout son historique (voir D49).
 
 Le calcul des indicateurs est du code Python déterministe sur des
 requêtes SQL, au même titre que le moteur de devis, et testé de la même
@@ -138,6 +139,7 @@ src/extraction/    interface LLM, prompts, mock
 src/orchestration/ machine à états, questions
 src/moteur/        calcul du devis, règles de quantité
 src/catalogue/     accès aux ressources
+src/consultation/  lecture des demandes et des prospects par le gestionnaire
 src/indicateurs/   calcul des KPI du tableau de bord
 src/auth/          hachage, vérification, session
 src/pdf/           génération du document

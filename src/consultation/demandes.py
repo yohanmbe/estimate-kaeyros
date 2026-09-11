@@ -53,6 +53,30 @@ def lister_demandes(
     ]
 
 
+def lister_demandes_du_prospect(
+    session: Session, tenant_id: str, prospect_id: str
+) -> list[LigneListeDemande]:
+    """Toutes les demandes d'un prospect, de la plus récente à la plus ancienne.
+
+    Sans borne de période, contrairement à lister_demandes : la fiche d'un
+    prospect porte son historique entier, c'est ce qu'on vient y chercher.
+    """
+    demandes = list(
+        session.scalars(
+            select(Demande)
+            .where(Demande.tenant_id == tenant_id, Demande.prospect_id == prospect_id)
+            .order_by(Demande.date_creation.desc())
+        )
+    )
+    identifiants = [demande.id for demande in demandes]
+    prospects = _prospects_du_tenant(session, tenant_id, demandes)
+    derniers_devis = _dernier_devis_par_demande(session, tenant_id, identifiants)
+    return [
+        _resumer(demande, prospects.get(demande.prospect_id), derniers_devis.get(demande.id))
+        for demande in demandes
+    ]
+
+
 def consulter_demande(session: Session, tenant_id: str, demande_id: str) -> DetailDemande | None:
     """Détail d'une demande du tenant, None si elle ne lui appartient pas.
 
@@ -117,6 +141,7 @@ def _prospects_du_tenant(
     nombre_demandes = _compter_demandes_par_prospect(session, tenant_id, identifiants)
     return {
         prospect.id: ProspectDeLaDemande(
+            id=prospect.id,
             nom=prospect.nom,
             telephone=prospect.telephone,
             email=prospect.email,
