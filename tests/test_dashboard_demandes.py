@@ -100,6 +100,42 @@ def test_detail_dune_demande_porte_le_besoin_et_les_coordonnees(base_branchee):
     assert "12/12/2026" in texte
 
 
+def test_detail_dun_prospect_a_sa_premiere_demande_affiche_premiere_demande(base_branchee):
+    tenant = installer_tenant(base_branchee)
+    demande = creer_demande(base_branchee, tenant, LE_15_JANVIER)
+    ecran = ouvrir_ecran(tenant.id)
+
+    texte = texte_affiche(cliquer(ecran, f"ouvrir-{demande.id}"))
+
+    assert "Première demande" in texte
+
+
+def test_detail_dun_prospect_revenu_affiche_le_nombre_de_demandes(base_branchee):
+    """Même téléphone (voir D47), deux demandes : le détail de l'une doit
+    signaler que ce prospect est déjà revenu."""
+    tenant = installer_tenant(base_branchee)
+    premiere = creer_demande(base_branchee, tenant, LE_15_JANVIER, telephone="699001122")
+    seconde = creer_demande(base_branchee, tenant, LE_20_JANVIER, prospect=premiere.prospect)
+    ecran = ouvrir_ecran(tenant.id)
+
+    texte = texte_affiche(cliquer(ecran, f"ouvrir-{seconde.id}"))
+
+    assert "2 demandes au total" in texte
+    assert "Première demande" not in texte
+
+
+def test_lhistorique_du_prospect_napparait_pas_dans_la_liste(base_branchee):
+    """« Première demande » / « N demandes au total » n'a de sens que sur le
+    détail d'une demande : la liste ne doit pas l'afficher."""
+    tenant = installer_tenant(base_branchee)
+    creer_demande(base_branchee, tenant, LE_15_JANVIER)
+
+    texte = texte_affiche(ouvrir_ecran(tenant.id))
+
+    assert "Première demande" not in texte
+    assert "au total" not in texte
+
+
 def test_detail_affiche_les_lignes_figees_du_devis_et_son_total(base_branchee):
     """Les lignes viennent de la base, elles ne sont jamais rechiffrées (D11)"""
     tenant = installer_tenant(base_branchee)

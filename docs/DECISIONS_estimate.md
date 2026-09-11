@@ -524,4 +524,28 @@ Sans l'option sur mesure toujours visible, un prospect voulant se marier à
 Douala face à un catalogue uniquement à Yaoundé n'aurait aucun moyen de le
 signaler.
 
+## D47 — Le prospect est reconnu par téléphone entre deux visites (2026-09-11)
+
+`enregistrer_prospect` cherche désormais un prospect existant du même
+tenant par son numéro de téléphone avant d'en créer un : un même numéro
+revenant renvoie la fiche déjà en base, jamais une nouvelle ligne.
+Supersede la clause de D26 qui excluait toute déduplication en v1.
+Une fiche existante n'est jamais modifiée par une visite suivante : nom,
+email et consentement_contact restent ceux de la première fois, comme le
+mot de passe d'un gestionnaire n'est jamais réécrit par un second passage
+du seed (voir src/catalogue/provisionnement.py).
+Pas de contrainte unique en base sur (tenant_id, telephone) : la garantie
+est portée par ce seul chemin d'écriture, pas par le schéma, pour ne pas
+imposer l'unicité aux fixtures de test qui insèrent des lignes prospect
+directement sans s'en soucier.
+Raison : sans reconnaissance, le nombre de prospects est toujours égal au
+nombre de demandes et « combien de fois ce prospect est-il revenu ? »
+n'a pas de réponse — deux repères que le gestionnaire a demandés. Le
+téléphone est la seule coordonnée obligatoire du prospect (voir DONNEES.md),
+c'est la clé naturelle.
+Débloque : src/indicateurs/prospects.py::compter_prospects (nombre de
+prospects distincts sur une période, désormais possiblement inférieur au
+nombre de demandes) et l'historique par prospect affiché sur le détail
+d'une demande (dashboard/demandes.py).
+
 [Décisions suivantes à ajouter au fil du développement, avec la date.]

@@ -53,9 +53,15 @@ def creer_demande(
     besoin: dict | None = None,
     etat: str = ETAT_EN_COURS,
     nom_prospect: str | None = "Sylvie Nkoa",
+    prospect: Prospect | None = None,
 ) -> Demande:
+    """Passer un prospect existant (par ex. premiere_demande.prospect) simule
+    un même prospect qui revient (voir D47) : nom_prospect est alors ignoré.
+    """
     prospect_id = None
-    if nom_prospect is not None:
+    if prospect is not None:
+        prospect_id = prospect.id
+    elif nom_prospect is not None:
         prospect = Prospect(
             tenant_id=tenant.id,
             nom=nom_prospect,
@@ -221,6 +227,31 @@ def test_detail_liste_les_devis_du_plus_recent_au_plus_ancien(session):
     detail = consulter_demande(session, etoile.id, demande.id)
 
     assert [devis.total for devis in detail.devis] == [3_100_000, 2_600_000]
+
+
+def test_detail_dun_prospect_a_sa_premiere_demande_compte_une_demande(session):
+    etoile = creer_tenant(session, "etoile")
+    demande = creer_demande(session, etoile)
+
+    detail = consulter_demande(session, etoile.id, demande.id)
+
+    assert detail.resume.prospect.nombre_demandes == 1
+
+
+def test_detail_dun_prospect_revenu_compte_toutes_ses_demandes(session):
+    """Même prospect (même ligne, voir D47), deux demandes à des dates
+    différentes : le détail de l'une ou l'autre doit montrer les deux."""
+    etoile = creer_tenant(session, "etoile")
+    premiere = creer_demande(session, etoile, date_creation=datetime(2026, 1, 5))
+    seconde = creer_demande(
+        session, etoile, date_creation=datetime(2026, 1, 20), prospect=premiere.prospect
+    )
+
+    detail_premiere = consulter_demande(session, etoile.id, premiere.id)
+    detail_seconde = consulter_demande(session, etoile.id, seconde.id)
+
+    assert detail_premiere.resume.prospect.nombre_demandes == 2
+    assert detail_seconde.resume.prospect.nombre_demandes == 2
 
 
 def test_demande_dun_autre_tenant_est_introuvable_meme_avec_son_identifiant(session):

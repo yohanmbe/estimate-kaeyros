@@ -114,15 +114,35 @@ def _prospects_du_tenant(
             Prospect.tenant_id == tenant_id, Prospect.id.in_(identifiants)
         )
     )
+    nombre_demandes = _compter_demandes_par_prospect(session, tenant_id, identifiants)
     return {
         prospect.id: ProspectDeLaDemande(
             nom=prospect.nom,
             telephone=prospect.telephone,
             email=prospect.email,
             consentement_contact=prospect.consentement_contact,
+            nombre_demandes=nombre_demandes.get(prospect.id, 0),
         )
         for prospect in prospects
     }
+
+
+def _compter_demandes_par_prospect(
+    session: Session, tenant_id: str, identifiants: set[str]
+) -> dict[str, int]:
+    """Nombre de demandes de chaque prospect, toutes périodes confondues (voir D47).
+
+    Pas limité à la période affichée : un prospect qui revient après
+    plusieurs mois doit rester reconnu comme tel sur le détail d'une demande.
+    """
+    lignes = session.execute(
+        select(Demande.prospect_id, func.count(Demande.id))
+        .where(Demande.tenant_id == tenant_id, Demande.prospect_id.in_(identifiants))
+        .group_by(Demande.prospect_id)
+    )
+    # dict(lignes) traiterait le Result comme un mapping (il porte .keys())
+    # plutôt que comme un itérable de couples : .all() force la liste de lignes.
+    return dict(lignes.all())
 
 
 def _dernier_devis_par_demande(

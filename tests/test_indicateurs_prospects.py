@@ -3,7 +3,7 @@ from datetime import datetime
 from sqlalchemy.orm import Session
 
 from src.db.models import Prospect, Tenant
-from src.indicateurs.prospects import calculer_taux_consentement_contact
+from src.indicateurs.prospects import calculer_taux_consentement_contact, compter_prospects
 from src.indicateurs.types import Periode
 
 PERIODE_JANVIER = Periode(debut=datetime(2026, 1, 1), fin=datetime(2026, 1, 31, 23, 59, 59))
@@ -65,3 +65,27 @@ def test_taux_consentement_sans_prospect_sur_la_periode_est_zero(session):
     etoile = creer_tenant(session, "etoile")
 
     assert calculer_taux_consentement_contact(session, etoile.id, PERIODE_JANVIER) == 0
+
+
+def test_compte_les_prospects_de_la_periode(session):
+    etoile = creer_tenant(session, "etoile")
+    creer_prospect(session, etoile, datetime(2026, 1, 5), consentement_contact=True)
+    creer_prospect(session, etoile, datetime(2026, 1, 20), consentement_contact=False)
+    # Hors période : ne doit pas peser dans le compte.
+    creer_prospect(session, etoile, datetime(2026, 2, 1), consentement_contact=True)
+
+    assert compter_prospects(session, etoile.id, PERIODE_JANVIER) == 2
+
+
+def test_compte_de_prospects_ignore_un_autre_tenant(session):
+    etoile = creer_tenant(session, "etoile")
+    fanta = creer_tenant(session, "fanta")
+    creer_prospect(session, fanta, datetime(2026, 1, 5), consentement_contact=True)
+
+    assert compter_prospects(session, etoile.id, PERIODE_JANVIER) == 0
+
+
+def test_compte_de_prospects_sans_prospect_sur_la_periode_est_zero(session):
+    etoile = creer_tenant(session, "etoile")
+
+    assert compter_prospects(session, etoile.id, PERIODE_JANVIER) == 0

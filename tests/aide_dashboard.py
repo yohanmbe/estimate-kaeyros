@@ -124,23 +124,30 @@ def creer_demande(
     consentement_contact: bool = True,
     besoins_hors_catalogue: str | None = None,
     commentaire: str | None = None,
+    prospect: Prospect | None = None,
 ) -> Demande:
     """Crée une demande, son prospect, et son devis si un total est demandé.
 
     Les lignes sont écrites directement pour maîtriser les dates, ce que les
     fonctions de production ne permettent pas : le chemin réel, lui, est
     couvert par tests/test_canaux_streamlit_prospect.py.
+
+    Passer un prospect existant (par exemple demande_precedente.prospect)
+    simule un même prospect qui revient (voir D47) : aucune nouvelle ligne
+    prospect n'est créée, nom_prospect/telephone/consentement_contact sont
+    alors ignorés.
     """
-    prospect = Prospect(
-        tenant_id=tenant.id,
-        nom=nom_prospect,
-        telephone=telephone,
-        email="sylvie@example.cm",
-        consentement_contact=consentement_contact,
-        date_creation=date_creation,
-    )
-    session.add(prospect)
-    session.flush()
+    if prospect is None:
+        prospect = Prospect(
+            tenant_id=tenant.id,
+            nom=nom_prospect,
+            telephone=telephone,
+            email="sylvie@example.cm",
+            consentement_contact=consentement_contact,
+            date_creation=date_creation,
+        )
+        session.add(prospect)
+        session.flush()
 
     demande = Demande(
         tenant_id=tenant.id,

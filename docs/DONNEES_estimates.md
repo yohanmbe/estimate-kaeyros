@@ -119,10 +119,12 @@ arrive qualifiée chez le commercial »).
   pour être recontacté à propos de cette demande
 - date_creation
 
-Pas de déduplication en v1 : un même numéro qui revient crée une nouvelle
-ligne plutôt que de chercher une correspondance existante. Le mécanisme
-de rapprochement entre plusieurs demandes d'un même prospect n'est pas
-un besoin exprimé pour cette version.
+Déduplication par téléphone, au sein d'un même tenant (voir D47) : un
+numéro déjà vu renvoie la fiche existante plutôt que d'en créer une
+nouvelle. Cette fiche n'est ensuite jamais modifiée par une visite
+suivante — nom, email et consentement_contact restent ceux de la
+première fois. C'est ce qui permet de compter les prospects distinctement
+des demandes, et de savoir combien de demandes un même prospect a faites.
 
 ### demande
 Une conversation en cours ou terminée.
@@ -182,11 +184,20 @@ nombre_invites du besoin en quatre tranches — moins de 100, 100-250, 251-500,
 plus de 500 (voir D36). Une demande dont le besoin ne porte pas encore
 nombre_invites n'entre dans aucune tranche.
 
-Deux indicateurs complémentaires s'y ajoutent, sur la table prospect et sur le
-croisement demande-devis : la part des prospects ayant accepté d'être
-recontactés, et la part des demandes ayant reçu une estimation. Ni l'un ni
-l'autre ne mesure une conversion commerciale au sens de D19 : le premier est un
-fait connu dès la création du prospect, le second un acte du produit lui-même.
+Trois indicateurs complémentaires s'y ajoutent, sur la table prospect et sur
+le croisement demande-devis : le nombre de prospects identifiés sur la
+période, la part des prospects ayant accepté d'être recontactés, et la part
+des demandes ayant reçu une estimation. Aucun des trois ne mesure une
+conversion commerciale au sens de D19 : le nombre de prospects et le taux de
+consentement sont des faits connus dès la création du prospect, le taux de
+demandes chiffrées un acte du produit lui-même.
+
+Le nombre de prospects (compter_prospects) peut désormais être inférieur au
+nombre de demandes sur la même période : un prospect déjà connu qui revient
+(voir D47, déduplication par téléphone) ouvre une nouvelle demande sans
+créer une nouvelle ligne prospect. Combien de demandes un même prospect a
+faites au total se lit, lui, sur le détail d'une demande dans le tableau de
+bord, pas comme indicateur agrégé.
 
 Aucun indicateur de conversion n'est affiché, le produit ne sachant pas
 ce qu'une demande devient après l'envoi de l'estimation (voir D08 et

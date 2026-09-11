@@ -70,14 +70,33 @@ def test_repartition_par_tranche_montre_les_quatre_tranches(base_branchee):
     assert "500+" in texte
 
 
-def test_les_deux_indicateurs_complementaires_sont_affiches(base_branchee):
+def test_les_trois_indicateurs_complementaires_sont_affiches(base_branchee):
     tenant = installer_tenant(base_branchee)
     creer_demande(base_branchee, tenant, CE_MOIS, total_devis=2_225_000)
 
     texte = texte_affiche(lancer_ecran_connecte(tenant.id))
 
+    assert "prospects identifiés" in texte
     assert "acceptent d'être recontactés" in texte
     assert "ont reçu une estimation" in texte
+
+
+def test_prospect_qui_revient_fait_moins_de_prospects_que_de_demandes(base_branchee):
+    """Un même prospect (même téléphone, voir D47) ouvre deux demandes ce
+    mois-ci : une seule ligne prospect, mais deux demandes reçues.
+
+    Les assertions collent la valeur affichée à son libellé (plutôt que de
+    chercher un chiffre seul dans la page) pour ne pas confondre ce chiffre
+    avec une date ou un autre montant affiché ailleurs sur l'écran.
+    """
+    tenant = installer_tenant(base_branchee)
+    premiere = creer_demande(base_branchee, tenant, CE_MOIS, telephone="699001122")
+    creer_demande(base_branchee, tenant, CE_MOIS, prospect=premiere.prospect)
+
+    texte = texte_affiche(lancer_ecran_connecte(tenant.id))
+
+    assert 'carte__libelle">Demandes reçues</div><div class="carte__valeur">2' in texte
+    assert 'bande__valeur">1</span><span class="bande__libelle">prospects identifiés' in texte
 
 
 def test_aucun_indicateur_de_conversion_commerciale_nest_affiche(base_branchee):

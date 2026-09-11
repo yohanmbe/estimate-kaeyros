@@ -5,8 +5,8 @@ src/indicateurs, testée séparément, qui filtre sur le tenant de la session.
 L'écran ne fait que demander, mettre en forme et afficher.
 
 Quatre cartes pour les quatre indicateurs de D19, puis une bande discrète pour
-les deux indicateurs complémentaires : six cartes de même poids ne se
-hiérarchisent pas à l'œil.
+les trois indicateurs complémentaires : les faire toutes peser pareil ne
+hiérarchiserait rien à l'œil.
 """
 from datetime import date
 
@@ -38,7 +38,7 @@ from src.indicateurs.chiffrage import calculer_taux_demandes_chiffrees
 from src.indicateurs.demandes import compter_demandes, repartir_par_tranche_invites
 from src.indicateurs.devis import calculer_montant_total
 from src.indicateurs.periodes import LIBELLES_PERIODES, periode_depuis_libelle
-from src.indicateurs.prospects import calculer_taux_consentement_contact
+from src.indicateurs.prospects import calculer_taux_consentement_contact, compter_prospects
 from src.indicateurs.types import Periode
 from src.presentation.montant import formater_nombre
 
@@ -56,6 +56,7 @@ def afficher_tableau_de_bord(
         nombre_demandes = compter_demandes(session, tenant.id, periode)
         montant_total = calculer_montant_total(session, tenant.id, periode)
         tranches = repartir_par_tranche_invites(session, tenant.id, periode)
+        nombre_prospects = compter_prospects(session, tenant.id, periode)
         taux_consentement = calculer_taux_consentement_contact(session, tenant.id, periode)
         taux_chiffrees = calculer_taux_demandes_chiffrees(session, tenant.id, periode)
         dernieres = lister_demandes(
@@ -63,7 +64,7 @@ def afficher_tableau_de_bord(
         )
 
     _afficher_cartes(nombre_demandes, montant_total, tranches, libelle_periode)
-    _afficher_indicateurs_complementaires(taux_consentement, taux_chiffrees)
+    _afficher_indicateurs_complementaires(nombre_prospects, taux_consentement, taux_chiffrees)
     _afficher_dernieres_demandes(dernieres, tenant, periode)
 
 
@@ -114,16 +115,20 @@ def _afficher_cartes(
 
 
 def _afficher_indicateurs_complementaires(
-    taux_consentement: int, taux_chiffrees: int
+    nombre_prospects: int, taux_consentement: int, taux_chiffrees: int
 ) -> None:
-    """Deux repères qui complètent D19 sans mesurer aucune conversion commerciale"""
+    """Trois repères qui complètent D19 sans mesurer aucune conversion commerciale"""
     st.write("")
-    bandes = st.columns(2, gap="medium")
+    bandes = st.columns(3, gap="medium")
     bandes[0].markdown(
-        bande_indicateur(f"{taux_consentement} %", "des prospects acceptent d'être recontactés"),
+        bande_indicateur(formater_nombre(nombre_prospects), "prospects identifiés sur la période"),
         unsafe_allow_html=True,
     )
     bandes[1].markdown(
+        bande_indicateur(f"{taux_consentement} %", "des prospects acceptent d'être recontactés"),
+        unsafe_allow_html=True,
+    )
+    bandes[2].markdown(
         bande_indicateur(f"{taux_chiffrees} %", "des demandes ont reçu une estimation"),
         unsafe_allow_html=True,
     )

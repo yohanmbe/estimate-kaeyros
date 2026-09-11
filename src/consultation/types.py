@@ -11,12 +11,18 @@ from datetime import datetime
 
 @dataclass(frozen=True)
 class ProspectDeLaDemande:
-    """Qui a demandé l'estimation, pour que le commercial puisse le rappeler (D26)"""
+    """Qui a demandé l'estimation, pour que le commercial puisse le rappeler (D26).
+
+    nombre_demandes compte toutes les demandes de ce prospect, toutes
+    périodes confondues (voir D47) : un même téléphone reconnu qui revient
+    doit rester identifiable comme tel sur le détail d'une demande.
+    """
 
     nom: str
     telephone: str
     email: str | None
     consentement_contact: bool
+    nombre_demandes: int
 
 
 @dataclass(frozen=True)

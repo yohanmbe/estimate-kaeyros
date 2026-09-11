@@ -303,8 +303,16 @@ def _recapitulatif_prospect(detail: DetailDemande) -> str:
                 "Relance autorisée",
                 "Oui" if prospect.consentement_contact else "Non",
             ),
+            ("Historique", _historique_prospect(prospect.nombre_demandes)),
         ],
     )
+
+
+def _historique_prospect(nombre_demandes: int) -> str:
+    """Rappelle qu'un prospect reconnu (même téléphone, voir D47) est déjà revenu"""
+    if nombre_demandes <= 1:
+        return "Première demande"
+    return f"{accorder(nombre_demandes, 'demande')} au total"
 
 
 def _afficher_devis(detail: DetailDemande) -> None:
